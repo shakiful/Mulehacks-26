@@ -1,0 +1,177 @@
+{
+  "note": "Synthetic mock responses. Fixed dates and scores are illustrative, not live results.",
+  "health": {
+    "status": "ok",
+    "demo_mode": true
+  },
+  "demo_users": {
+    "items": [
+      {
+        "id": 1,
+        "name": "Rafi (demo)"
+      },
+      {
+        "id": 2,
+        "name": "Sarah (demo)"
+      }
+    ]
+  },
+  "post_created": {
+    "id": 42,
+    "author": {
+      "id": 1,
+      "name": "Rafi (demo)"
+    },
+    "category": "STUDY",
+    "intent": "REQUEST",
+    "title": "Help with SQL joins",
+    "text": "I need help studying SQL joins tonight",
+    "location": "Library",
+    "starts_at": "2026-10-03T18:00:00-05:00",
+    "ends_at": "2026-10-03T19:00:00-05:00",
+    "details": {
+      "course": "SQL",
+      "topic": "joins",
+      "skill_level": "BEGINNER",
+      "mode": "IN_PERSON"
+    },
+    "status": "OPEN",
+    "created_at": "2026-10-03T12:00:00Z",
+    "updated_at": "2026-10-03T12:00:00Z"
+  },
+  "post_list": {
+    "items": [
+      {
+        "id": 42,
+        "author": {
+          "id": 1,
+          "name": "Rafi (demo)"
+        },
+        "category": "STUDY",
+        "intent": "REQUEST",
+        "title": "Help with SQL joins",
+        "text": "I need help studying SQL joins tonight",
+        "location": "Library",
+        "starts_at": "2026-10-03T18:00:00-05:00",
+        "ends_at": "2026-10-03T19:00:00-05:00",
+        "details": {
+          "course": "SQL",
+          "topic": "joins",
+          "skill_level": "BEGINNER",
+          "mode": "IN_PERSON"
+        },
+        "status": "OPEN",
+        "created_at": "2026-10-03T12:00:00Z",
+        "updated_at": "2026-10-03T12:00:00Z"
+      },
+      {
+        "id": 7,
+        "author": {
+          "id": 2,
+          "name": "Sarah (demo)"
+        },
+        "category": "STUDY",
+        "intent": "OFFER",
+        "title": "Relational database tutoring",
+        "text": "I can help with relational databases and SQL joins",
+        "location": "Library",
+        "starts_at": "2026-10-03T18:00:00-05:00",
+        "ends_at": "2026-10-03T19:00:00-05:00",
+        "details": {
+          "course": "Databases",
+          "topic": "SQL joins",
+          "skill_level": "ADVANCED",
+          "mode": "IN_PERSON"
+        },
+        "status": "OPEN",
+        "created_at": "2026-10-03T12:00:00Z",
+        "updated_at": "2026-10-03T12:00:00Z"
+      }
+    ],
+    "total": 2,
+    "limit": 20,
+    "offset": 0
+  },
+  "matches": {
+    "post_id": 42,
+    "matching_mode": "SEMANTIC",
+    "matches": [
+      {
+        "post": {
+          "id": 7,
+          "author": {
+            "id": 2,
+            "name": "Sarah (demo)"
+          },
+          "category": "STUDY",
+          "intent": "OFFER",
+          "title": "Relational database tutoring",
+          "text": "I can help with relational databases and SQL joins",
+          "location": "Library",
+          "starts_at": "2026-10-03T18:00:00-05:00",
+          "ends_at": "2026-10-03T19:00:00-05:00",
+          "details": {
+            "course": "Databases",
+            "topic": "SQL joins",
+            "skill_level": "ADVANCED",
+            "mode": "IN_PERSON"
+          },
+          "status": "OPEN",
+          "created_at": "2026-10-03T12:00:00Z",
+          "updated_at": "2026-10-03T12:00:00Z"
+        },
+        "score": 89.4,
+        "reasons": [
+          "Relevant SQL tutoring offer",
+          "Overlapping availability",
+          "Same meeting location"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  "empty_matches": {
+    "post_id": 42,
+    "matching_mode": "HEURISTIC",
+    "matches": []
+  },
+  "connection": {
+    "id": 12,
+    "requester_id": 1,
+    "receiver_id": 2,
+    "source_post_id": 42,
+    "target_post_id": 7,
+    "status": "PENDING",
+    "created_at": "2026-10-03T21:30:00Z",
+    "updated_at": "2026-10-03T21:30:00Z"
+  },
+  "security": {
+    "risk_level": "HIGH",
+    "summary": "The message has warning signs consistent with phishing.",
+    "reasons": [
+      {
+        "code": "URGENCY",
+        "description": "Pressures you to act immediately"
+      },
+      {
+        "code": "LOGIN_LURE",
+        "description": "Directs you to an unverified login-like domain"
+      }
+    ],
+    "recommendation": "Do not enter credentials; verify through a known official university channel.",
+    "limitations": "Text-based risk assessment; no link was visited and safety is not guaranteed.",
+    "analysis_mode": "HEURISTIC"
+  },
+  "validation_error": {
+    "error": {
+      "code": "VALIDATION_ERROR",
+      "message": "Correct the highlighted fields.",
+      "details": [
+        {
+          "field": "details.seats",
+          "message": "Must be at least 1"
+        }
+      ]
+    }
+  }
+}
