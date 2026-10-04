@@ -1,9 +1,8 @@
 import { CalendarDays, MapPin } from "lucide-react";
 import type { Post } from "../api/types";
-import { categoryNames, ridePlaceLabel } from "../lib/posts";
+import { categoryNames } from "../lib/posts";
 import type { ReactNode } from "react";
 import { CAMPUS_TIME_ZONE, formatCampusDateTime } from "../lib/dateTime";
-import { rideDistanceMiles } from '../lib/geo';
 
 export function PostCard({
   post,
@@ -13,9 +12,8 @@ export function PostCard({
   children?: ReactNode;
 }) {
   const detailItems = Object.entries(post.details).filter(
-    ([key, value]) => value !== null && value !== "" && !key.endsWith("_point"),
+    ([, value]) => value !== null && value !== "",
   );
-  const tripMiles = post.category === 'RIDE' ? rideDistanceMiles(post.details.origin_point, post.details.destination_point) : null;
   return (
     <article className="post-card">
       <div className="flex items-center justify-between gap-3">
@@ -42,21 +40,10 @@ export function PostCard({
                   ? "Desired group size"
                   : key.replaceAll("_", " ")}
             </dt>
-            <dd>{(post.category === 'RIDE' && (key === 'origin' || key === 'destination')
-              ? ridePlaceLabel(value, key) : String(value)).replaceAll("_", " ")}</dd>
+            <dd>{String(value).replaceAll("_", " ")}</dd>
           </div>
         ))}
       </dl>
-      {tripMiles !== null && <p className="mt-3 text-sm text-stone-500">From → To: {tripMiles.toFixed(2)} miles straight-line. Driving distance may be longer.</p>}
-      {post.ride_availability && (
-        <p className="notice mt-4">
-          {post.ride_availability.remaining_seats} of {post.ride_availability.total_seats} seats remaining
-          {" · "}{post.ride_availability.reserved_seats} reserved
-        </p>
-      )}
-      {post.category === "RIDE" && (!post.details.origin_point || !post.details.destination_point) && (
-        <p className="mt-3 text-xs text-stone-500">Older ride: edit your open post to add From/To map pins, or create a new mapped ride.</p>
-      )}
       {(post.location || post.starts_at) && (
         <div className="mt-4 flex flex-wrap gap-3 text-xs text-stone-500">
           {post.location && (

@@ -2,7 +2,7 @@ You are implementing Person 1's work for ConnectHub.
 
 Read AGENTS.md, README.md, docs/PROJECT_SPEC.md, docs/ARCHITECTURE.md, docs/API_CONTRACT.md and docs/TASKS.md. Inspect existing code, git status and current branch before editing. Preserve existing working code and reconcile it with the proposed contract.
 
-Implement React/Vite/Tailwind frontend foundation, navigation/dashboard, student sign-in/logout, shared forms/cards and one typed API client. Use docs/fixtures/api_examples.json to build a mock adapter with the same methods and shapes as the live client. Demo identity has been superseded by session authentication; do not reintroduce a profile selector. The backend is Person 2's responsibility; make small cross-owner changes only when required by the user-authorized task.
+Implement React/Vite/Tailwind frontend foundation, navigation/dashboard, demo identity selector, shared forms/cards and one typed API client. Use docs/fixtures/api_examples.json to build a mock adapter with the same methods and shapes as the live client. The backend is Person 2's responsibility; implement UI while it is being built.
 
 Build natural-language preview/correction, Ride, Food and Community pages, connection requests/inbox and completion UI. Reserve dedicated Study/Security page filenames for Person 2 and communicate them in TASKS.md. Own shared components, routing, styling, dependencies and API client. Do not duplicate the matching engine in the browser or place provider credentials there.
 

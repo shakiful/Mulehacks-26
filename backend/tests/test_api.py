@@ -1,4 +1,3 @@
-from backend.tests.auth_helpers import auth_headers
 from datetime import datetime
 
 import pytest
@@ -19,11 +18,16 @@ def assert_error(response, status, code):
     return body['error']
 
 
-def test_health_session_and_removed_demo_profiles(client):
-    assert client.get('/api/health').json() == {'status': 'ok'}
-    assert client.get('/api/auth/session').json() == {'user': None, 'csrf_token': None}
-    assert_error(client.get('/api/demo/users'), 404, 'NOT_FOUND')
-    assert_error(client.get('/api/posts', headers={'X-Demo-User-Id': '1'}), 401, 'UNAUTHORIZED')
+def test_health_and_public_synthetic_profiles(client):
+    assert client.get('/api/health').json() == {'status': 'ok', 'demo_mode': True}
+    assert client.get('/api/demo/users').json() == {'items': [
+        {'id': 1, 'name': 'Rafi (demo)'}, {'id': 2, 'name': 'Sarah (demo)'},
+        {'id': 3, 'name': 'Alex (demo)'}, {'id': 4, 'name': 'Jamie (demo)'},
+    ]}
+    with client.app.state.session_factory.begin() as db:
+        db.add(User(id=5, name='Non-demo user'))
+    assert len(client.get('/api/demo/users').json()['items']) == 4
+    assert_error(client.get('/api/posts', headers={'X-Demo-User-Id': '5'}), 401, 'UNAUTHORIZED')
 
 
 def test_create_get_response_and_utc_roundtrip(client, headers, study):
@@ -32,9 +36,9 @@ def test_create_get_response_and_utc_roundtrip(client, headers, study):
     post = response.json()
     assert set(post) == {
         'id', 'author', 'category', 'intent', 'title', 'text', 'location', 'starts_at',
-        'ends_at', 'details', 'status', 'created_at', 'updated_at', 'ride_availability',
+        'ends_at', 'details', 'status', 'created_at', 'updated_at',
     }
-    assert post['author'] == {'id': 1, 'name': 'Rafi'}
+    assert post['author'] == {'id': 1, 'name': 'Rafi (demo)'}
     assert post['status'] == 'OPEN'
     for field in ('category', 'intent', 'title', 'text', 'location', 'details'):
         assert post[field] == study[field]
@@ -43,7 +47,7 @@ def test_create_get_response_and_utc_roundtrip(client, headers, study):
         assert datetime.fromisoformat(post[field]).utcoffset().total_seconds() == 0
     for field in ('created_at', 'updated_at'):
         assert datetime.fromisoformat(post[field]).tzinfo is not None
-    assert client.get(f"/api/posts/{post['id']}", headers=auth_headers(client, 2)).json() == post
+    assert client.get(f"/api/posts/{post['id']}", headers={'X-Demo-User-Id': '2'}).json() == post
 
 
 @pytest.mark.parametrize('category,intent,details,timed', [
@@ -54,9 +58,6 @@ def test_create_get_response_and_utc_roundtrip(client, headers, study):
 ])
 def test_all_categories_and_optional_nulls(client, headers, category, intent, details, timed):
     body = {'category': category, 'intent': intent, 'details': details, 'title': 'Demo', 'text': 'Synthetic request'}
-    if category == 'RIDE':
-        body['details'] = {**details, 'origin_point': {'lat': 38.7625, 'lng': -93.7395},
-                           'destination_point': {'lat': 38.7905, 'lng': -93.7390}}
     if timed:
         body['starts_at'] = '2026-10-03T18:00:00Z'
     response = client.post('/api/posts', json=body, headers=headers)
@@ -169,7 +170,7 @@ def test_invalid_list_filters(client, headers, query):
 def test_only_author_can_close_and_closed_posts_conflict(client, headers, study, status):
     post = client.post('/api/posts', json=study, headers=headers).json()
     path = f"/api/posts/{post['id']}"
-    assert_error(client.patch(path, json={'status': status}, headers=auth_headers(client, 2)), 403, 'FORBIDDEN')
+    assert_error(client.patch(path, json={'status': status}, headers={'X-Demo-User-Id': '2'}), 403, 'FORBIDDEN')
     assert client.get(path, headers=headers).json()['status'] == 'OPEN'
     updated = client.patch(path, json={'status': status}, headers=headers).json()
     assert updated['status'] == status
@@ -189,9 +190,10 @@ def test_missing_routes_ids_malformed_json_and_methods(client, headers):
     assert_error(client.post('/api/posts', content='{broken', headers={**headers, 'Content-Type': 'application/json'}), 422, 'VALIDATION_ERROR')
 
 
-def test_legacy_header_cannot_replace_a_session(settings):
+def test_demo_disabled(settings):
+    settings.demo_mode = False
     with TestClient(create_app(settings)) as client:
-        assert client.get('/api/health').json() == {'status': 'ok'}
+        assert client.get('/api/health').json() == {'status': 'ok', 'demo_mode': False}
         assert_error(client.get('/api/demo/users'), 404, 'NOT_FOUND')
         assert_error(client.get('/api/posts', headers={'X-Demo-User-Id': '1'}), 401, 'UNAUTHORIZED')
 
@@ -199,7 +201,7 @@ def test_legacy_header_cannot_replace_a_session(settings):
 def test_cors_allowed_preflight_and_errors(client):
     headers = {
         'Origin': 'http://localhost:5173', 'Access-Control-Request-Method': 'POST',
-        'Access-Control-Request-Headers': 'Content-Type,X-CSRF-Token',
+        'Access-Control-Request-Headers': 'Content-Type,X-Demo-User-Id',
     }
     response = client.options('/api/posts', headers=headers)
     assert response.status_code == 200

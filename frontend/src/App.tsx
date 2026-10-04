@@ -9,14 +9,10 @@ import { MatchesPage } from "./pages/MatchesPage";
 import { ConnectionsPage } from "./pages/ConnectionsPage";
 import { MyPostsPage } from "./pages/MyPostsPage";
 import { EditPostPage } from "./pages/EditPostPage";
-import { LoginPage } from "./pages/LoginPage";
-import { RequireAuth } from "./components/RequireAuth";
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route element={<RequireAuth />}>
       <Route element={<Layout />}>
         <Route index element={<DashboardPage />} />
         <Route
@@ -50,7 +46,6 @@ export function AppRoutes() {
             </div>
           }
         />
-      </Route>
       </Route>
     </Routes>
   );

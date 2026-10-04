@@ -1,13 +1,11 @@
 import { ApiError } from "./errors";
-import type { ApiClient, ErrorEnvelope, StudentSession } from "./types";
+import type { ApiClient, ErrorEnvelope } from "./types";
 
 export function createLiveApi(
   baseUrl: string,
+  getDemoUserId: () => number | null,
   fetcher: typeof fetch = fetch,
-  onUnauthorized?: () => void,
 ): ApiClient {
-  let csrfToken: string | null = null;
-  let sessionRevision = 0;
   async function request<T>(
     path: string,
     method = "GET",
@@ -16,14 +14,13 @@ export function createLiveApi(
   ): Promise<T> {
     const headers: Record<string, string> = { Accept: "application/json" };
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    const requestSession = csrfToken;
-    if (protectedOperation && method !== "GET" && csrfToken)
-      headers["X-CSRF-Token"] = csrfToken;
+    const id = getDemoUserId();
+    if (protectedOperation && id !== null)
+      headers["X-Demo-User-Id"] = String(id);
     let response: Response;
     try {
       response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
         method,
-        credentials: "include",
         headers,
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       });
@@ -50,11 +47,6 @@ export function createLiveApi(
       });
     }
     if (!response.ok) {
-      if (response.status === 401 && protectedOperation && requestSession === csrfToken) {
-        csrfToken = null;
-        sessionRevision += 1;
-        onUnauthorized?.();
-      }
       const envelope = payload as Partial<ErrorEnvelope>;
       throw new ApiError(
         response.status,
@@ -76,17 +68,9 @@ export function createLiveApi(
     }
     return payload as T;
   }
-  async function sessionRequest(path: string, method = "GET", body?: unknown, protectedOperation = false) {
-    const revision = ++sessionRevision;
-    const session = await request<StudentSession>(path, method, body, protectedOperation);
-    if (revision === sessionRevision) csrfToken = session.csrf_token;
-    return session;
-  }
   return {
     health: () => request("/health", "GET", undefined, false),
-    login: (username, password) => sessionRequest("/auth/login", "POST", { username, password }),
-    getSession: () => sessionRequest("/auth/session"),
-    logout: () => sessionRequest("/auth/logout", "POST", undefined, true),
+    listDemoUsers: () => request("/demo/users", "GET", undefined, false),
     getDiningMenus: () => request("/dining/menus", "GET", undefined, false),
     understand: (input) => request("/understand", "POST", input),
     createPost: (input) => request("/posts", "POST", input),

@@ -2,7 +2,7 @@ You are implementing Person 2's work for ConnectHub. I am Rafi, Person 2.
 
 Read AGENTS.md, README.md, docs/PROJECT_SPEC.md, docs/ARCHITECTURE.md, docs/API_CONTRACT.md and docs/TASKS.md. Inspect existing code, git status and current branch before editing. Reconcile existing behavior with this proposed contract; preserve working code. Do not assume this handoff is implemented.
 
-First implement the backend foundation: FastAPI configuration, SQLite/SQLAlchemy models, validated post schemas, local Rafi/Afsana test accounts and seed command, session-based authentication, health, CORS, posts endpoints, standard errors and ownership checks. Follow API_CONTRACT.md; demo identity has been replaced by student login. Add meaningful tests and update actual run commands. Keep provider calls out of routes.
+First implement the backend foundation: FastAPI configuration, SQLite/SQLAlchemy models, validated post schemas, synthetic demo users/seed command, health, CORS, posts endpoints, standard errors and ownership checks. Follow API_CONTRACT.md. Add meaningful tests and update actual run commands. Keep provider calls out of routes.
 
 Then implement connections, classify/extract preview, embedding service, category filtering/scoring, Study workflow and private security analysis in that order. Use a labeled heuristic fallback when configured AI is unavailable. Study/Security UI work must use Person 1's agreed dedicated page paths and shared client/components; avoid changing shared frontend infrastructure without coordination.
 

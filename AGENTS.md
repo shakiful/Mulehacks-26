@@ -23,9 +23,9 @@ This package contains a proposed implementation contract derived from the source
 - Update API_CONTRACT.md, fixtures and both consumers together when an interface changes.
 - Keep AI providers behind service interfaces; never call providers directly from routes or the browser.
 - Credentials stay in local .env files. Never commit credentials, database files or real private messages.
-- Use explicitly labeled seed data and local student test accounts (Rafi and Afsana). Password sign-in supersedes demo identity; never claim university verification or production authentication.
+- Use explicitly labeled seed data and demo identity. No claim of verified identities or production authentication.
 - Treat matching scores as compatibility scores, not probabilities. Security analysis is a risk assessment, not a safety guarantee.
 - Never fetch user-submitted URLs in the security analyzer. Analyze text and URL structure only.
 - Resolve relative time using the request's reference_time and timezone; ask for clarification rather than inventing dates, origins or availability.
-- Run checks appropriate to the changed behavior. Test API shapes, sessions, matching exclusions, record ownership, and security output where relevant. Report what passed and what remains incomplete.
+- Run checks appropriate to the changed behavior. Test API shapes, matching exclusions, authorization of demo records, and security output where relevant. Report what passed and what remains incomplete.
 - Prefer the working MVP. See PROJECT_SPEC.md for deferred scope.
