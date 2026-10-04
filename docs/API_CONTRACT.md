@@ -1,5 +1,7 @@
 # API contract — proposed MVP v1
 
+Hosted deployment preserves this contract. Netlify browser clients use `/api` on the frontend origin, proxied to Render's `/api` routes. Cookie path `/api`, HttpOnly/SameSite=Lax, secure HTTPS cookies, session CSRF headers, explicit origin checks and no-store private responses remain unchanged. Deploy previews use explicit synthetic fixtures by default. See `DEPLOYMENT.md` for hosting variables and persistence.
+
 Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps use ISO 8601 with a UTC offset. Protected operations use a server-managed HttpOnly session cookie from student sign-in; never trust body user_id or the removed X-Demo-User-Id header. Browser requests include credentials. Mutations send X-CSRF-Token from the current session response; origins must be configured frontend origins. Health, login, session lookup and dining menus are public. Rafi and Afsana are local test accounts, not university-verified identities.
 
 ## Shared types

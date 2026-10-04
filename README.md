@@ -8,6 +8,7 @@ Students describe a need; ConnectHub extracts details and finds compatible peopl
 **Status:** The React frontend and FastAPI/SQLite backend support sentence → preview → follow-up details → confirmed post → matches → connection request → recipient acceptance. Student sign-in/logout uses server sessions; Rafi and Afsana are the two local test accounts, and seed posts are labeled synthetic. Gemini is the default for understanding, security assessment and semantic embeddings; unavailable providers use a labeled heuristic fallback. OpenAI embeddings remain available. A versioned SQLite cache supports semantic ranking. The private Security page assesses pasted text without saving it or visiting submitted links. Food Connect also loads today's Todd/Ellis dining menus.
 
 ## Shared context
+- [Netlify + Render deployment](docs/DEPLOYMENT.md) — import `production`; build/routing and persistent-backend templates are included.
 - [Product scope](docs/PROJECT_SPEC.md)
 - [Architecture and data](docs/ARCHITECTURE.md)
 - [API contract](docs/API_CONTRACT.md)
@@ -226,7 +227,7 @@ node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 5173 --strict
 
 These are alternative commands for restricted runners. Current validation used `npm run check -- --maxWorkers=2` (77 tests and TypeScript), `npm run build`, and live Chrome checks. Reducing workers avoids competing with CPU-intensive password tests. Restart/rebuild the frontend after changing `.env.local`.
 
-Each laptop runs its own frontend, backend and seeded SQLite database. Git shares code and fixtures; it does not synchronize live database state. During the final demo, run both services on one chosen laptop. Hosting or a shared backend is optional later work.
+Each laptop runs its own frontend, backend and seeded SQLite database. Git shares code and fixtures; it does not synchronize live database state. For hosted use, follow [Netlify + Render deployment](docs/DEPLOYMENT.md): Netlify serves the frontend and proxies `/api` to the persistent FastAPI/SQLite service on Render. Private credentials belong in Render's service environment. Netlify needs `BACKEND_URL` and uses `VITE_API_BASE_URL=/api`; nested app routes have an automatic SPA fallback. The Render disk requires paid hosting. A deliberate `VITE_USE_MOCKS=true` deploy is a labeled in-memory fixture demo, not a live backend.
 
 To create a Study post, open http://localhost:5173/study and click **Create study post**. Describe what you need, a partner you are looking for, or help you can offer, then click **Preview study post**. This uses the same AI extraction and editable form as the dashboard with Study selected. Review the course/topic, intent, meeting mode, location and campus date/time; add any missing details in a follow-up sentence or edit the fields yourself. **Confirm & post** saves the post and opens its matches. **Close form** clears the draft without posting. The existing Gemini setup and labeled heuristic fallback apply; no additional backend configuration is needed.
 

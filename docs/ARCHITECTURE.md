@@ -1,6 +1,7 @@
 # Architecture
 
 ## Components
+- Hosting: root `netlify.toml` builds frontend assets and generates an API-first `/api` proxy before SPA rewrites. `render.yaml` runs FastAPI through `backend.app.deploy` with secure cookie settings, bounded provider timeouts and a single persistent SQLite disk. Fixture previews stay isolated from live data. See `DEPLOYMENT.md`; no endpoint/schema changes or serverless SQLite copies.
 - frontend/: React/Vite/Tailwind; one shared API client, category pages, shared cards and forms.
 - backend/app/: FastAPI routes → domain services → SQLAlchemy repositories/SQLite.
 - backend/app/ai/: provider interfaces for classification, extraction and embedding; validated output and timeouts.
