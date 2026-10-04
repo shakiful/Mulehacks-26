@@ -81,6 +81,7 @@ export function createLiveApi(
       return request(`/posts${params.size ? `?${params}` : ""}`);
     },
     getPost: (id) => request(`/posts/${id}`),
+    editPost: (id, input) => request(`/posts/${id}`, "PUT", input),
     updatePost: (id, status) => request(`/posts/${id}`, "PATCH", { status }),
     getMatches: (post_id, limit = 5) =>
       request("/matches", "POST", { post_id, limit }),

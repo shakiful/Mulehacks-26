@@ -1,4 +1,4 @@
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { Category } from "../api/types";
@@ -60,6 +60,9 @@ export function PostBoard({
             <PostCard key={post.id} post={post}>
               {post.author.id === userId && post.status === "OPEN" && (
                 <>
+                  <Link className="button-secondary" to={`/posts/${post.id}/edit`}>
+                    <Pencil size={14} /> Edit post
+                  </Link>
                   <Link
                     className="button-secondary"
                     to={`/posts/${post.id}/matches`}

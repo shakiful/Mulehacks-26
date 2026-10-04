@@ -52,6 +52,11 @@ def get_post(post_id: PostId, db: DB, user: CurrentUser):
     return posts.get_post(db, post_id)
 
 
+@router.put('/posts/{post_id}', response_model=PostResponse)
+def edit_post(post_id: PostId, body: PostCreate, db: DB, user: CurrentUser):
+    return posts.edit_post(db, post_id, body, user)
+
+
 @router.patch('/posts/{post_id}', response_model=PostResponse)
 def update_status(post_id: PostId, body: StatusUpdate, db: DB, user: CurrentUser):
     return posts.close_post(db, post_id, body.status, user)

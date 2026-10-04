@@ -15,6 +15,7 @@ import { CreatePost } from "../components/CreatePost";
 import { CategoryCard } from "../components/CategoryCard";
 import { PostBoard } from "../components/PostBoard";
 import { ErrorState } from "../components/States";
+import { CAMPUS_TIME_ZONE } from "../lib/dateTime";
 
 export function DashboardPage() {
   const { api, isMock } = useApi();
@@ -32,7 +33,7 @@ export function DashboardPage() {
     setPreview(null);
     const context = {
       reference_time: new Date().toISOString(),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: CAMPUS_TIME_ZONE,
     };
     setPreviewContext(context);
     try {

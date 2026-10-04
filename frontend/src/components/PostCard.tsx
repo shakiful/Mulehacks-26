@@ -2,6 +2,7 @@ import { CalendarDays, MapPin } from "lucide-react";
 import type { Post } from "../api/types";
 import { categoryNames } from "../lib/posts";
 import type { ReactNode } from "react";
+import { CAMPUS_TIME_ZONE, formatCampusDateTime } from "../lib/dateTime";
 
 export function PostCard({
   post,
@@ -54,16 +55,18 @@ export function PostCard({
           {post.starts_at && (
             <time
               dateTime={post.starts_at}
-              title={post.starts_at}
+              title={formatCampusDateTime(post.starts_at)}
               className="inline-flex items-center gap-1.5"
             >
               <CalendarDays size={13} />
-              {new Date(post.starts_at).toLocaleString([], {
+              {new Date(post.starts_at).toLocaleString("en-US", {
                 month: "short",
                 day: "numeric",
                 hour: "numeric",
                 minute: "2-digit",
                 timeZoneName: "short",
+                timeZone: CAMPUS_TIME_ZONE,
+                hour12: true,
               })}
             </time>
           )}
