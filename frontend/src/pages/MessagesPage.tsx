@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import type { Message, ThreadKind } from "../api/types";
 import { useApi } from "../context/ApiContext";
 import { Field } from "../components/Field";
+import { MessageSafety } from "../components/MessageSafety";
 import { refreshNotifications } from "../lib/notifications";
 import { EmptyState, ErrorState, LoadingState } from "../components/States";
 
@@ -159,6 +160,7 @@ function Conversation({ kind, id }: { kind: ThreadKind; id: number }) {
       : context && <>
         <div className="page-heading"><div><p className="eyebrow">YOUR CAMPUS CONVERSATION</p><h1>Message {context.name}</h1><p>{context.title}</p></div></div>
         <p className="notice mb-5">Visible only to you and {context.name}. Messages are saved in the local system; new replies refresh every few seconds.</p>
+        <p className="notice mb-5">Automatic phishing checks use private local rules. Warnings are advice, not a verdict; no warning does not mean safe. Links stay as text. Review with AI is optional and lets you remove private details before sending selected text to Gemini.</p>
         {pollError !== null && <div className="mb-4"><ErrorState error={pollError} /><p className="text-sm mt-2">New replies will retry automatically. Your draft is preserved.</p></div>}
         <div className="form-panel">
           {more && <button className="button-secondary mb-4" disabled={olderLoading} onClick={older}>{olderLoading ? "Loading…" : "Load earlier messages"}</button>}
@@ -169,6 +171,7 @@ function Conversation({ kind, id }: { kind: ThreadKind; id: number }) {
                   <p className="text-xs font-semibold text-stone-600">{message.sender.name}</p>
                   <p className="mt-1 text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.text}</p>
                   <time className="mt-2 block text-xs text-stone-500" dateTime={message.created_at}>{new Date(message.created_at).toLocaleString()}</time>
+                  <MessageSafety message={message} />
                 </div>
               </div>)}
             <div ref={bottom} />

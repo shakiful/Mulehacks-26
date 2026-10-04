@@ -764,7 +764,15 @@
       "name": "Rafi"
     },
     "text": "Synthetic example: shall we study at the library?",
-    "created_at": "2026-10-04T20:05:00Z"
+    "created_at": "2026-10-04T20:05:00Z",
+    "security": {
+      "risk_level": "LOW",
+      "summary": "Fewer warning signs were detected in the supplied text; this does not establish safety.",
+      "reasons": [],
+      "recommendation": "Verify the request through a known official website or contact channel, rather than a link or contact detail in the message. Do not share passwords or verification codes. For concerning messages, avoid replying, entering credentials, sending money or opening attachments; ask your university IT team for help through its known contact channel.",
+      "limitations": "Automatic rules check this message locally, without sending it to an AI provider. No link was visited and no sender or domain ownership was verified. LOW means fewer detected signals, not safe; rules can miss threats or flag legitimate messages. Chat messages remain saved in the local database; assessments are not saved separately.",
+      "analysis_mode": "HEURISTIC"
+    }
   },
   "message_list": {
     "items": [
@@ -777,7 +785,15 @@
           "name": "Rafi"
         },
         "text": "Synthetic example: shall we study at the library?",
-        "created_at": "2026-10-04T20:05:00Z"
+        "created_at": "2026-10-04T20:05:00Z",
+        "security": {
+          "risk_level": "LOW",
+          "summary": "Fewer warning signs were detected in the supplied text; this does not establish safety.",
+          "reasons": [],
+          "recommendation": "Verify the request through a known official website or contact channel, rather than a link or contact detail in the message. Do not share passwords or verification codes. For concerning messages, avoid replying, entering credentials, sending money or opening attachments; ask your university IT team for help through its known contact channel.",
+          "limitations": "Automatic rules check this message locally, without sending it to an AI provider. No link was visited and no sender or domain ownership was verified. LOW means fewer detected signals, not safe; rules can miss threats or flag legitimate messages. Chat messages remain saved in the local database; assessments are not saved separately.",
+          "analysis_mode": "HEURISTIC"
+        }
       }
     ],
     "has_more": false
@@ -815,5 +831,26 @@
     ],
     "unread_count": 1,
     "has_more": false
+  },
+  "chat_security_warning": {
+    "risk_level": "HIGH",
+    "summary": "The supplied text has strong warning signs consistent with phishing or social engineering.",
+    "reasons": [
+      {
+        "code": "URGENCY",
+        "description": "Pressures immediate action or threatens an account deadline."
+      },
+      {
+        "code": "CREDENTIAL_REQUEST",
+        "description": "Requests a password, verification code or other sensitive information."
+      },
+      {
+        "code": "LOGIN_LURE",
+        "description": "Includes a login or account-verification link whose destination has not been verified."
+      }
+    ],
+    "recommendation": "Verify the request through a known official website or contact channel, rather than a link or contact detail in the message. Do not share passwords or verification codes. For concerning messages, avoid replying, entering credentials, sending money or opening attachments; ask your university IT team for help through its known contact channel.",
+    "limitations": "Automatic rules check this message locally, without sending it to an AI provider. No link was visited and no sender or domain ownership was verified. LOW means fewer detected signals, not safe; rules can miss threats or flag legitimate messages. Chat messages remain saved in the local database; assessments are not saved separately.",
+    "analysis_mode": "HEURISTIC"
   }
 }

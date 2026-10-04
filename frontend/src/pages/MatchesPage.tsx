@@ -88,28 +88,26 @@ export function MatchesPage() {
         />
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
-          {data.matches.matches.map((match) => (
-            <MatchCard
-              key={match.post.id}
-              match={match}
-              mode={data.matches.matching_mode}
-              isMock={isMock}
-              pending={pending === match.post.id}
-              messageId={data.connections.items.find((c) => c.status === "ACCEPTED" &&
-                ((c.source_post_id === postId && c.target_post_id === match.post.id) ||
-                 (c.target_post_id === postId && c.source_post_id === match.post.id)))?.id}
-              connected={
-                sent.includes(match.post.id) ||
-                data.connections.items.some(
-                  (connection) =>
-                    ((connection.source_post_id === postId && connection.target_post_id === match.post.id) ||
-                     (connection.target_post_id === postId && connection.source_post_id === match.post.id)) &&
-                    ["PENDING", "ACCEPTED"].includes(connection.status),
-                )
-              }
-              onConnect={() => connect(match.post.id)}
-            />
-          ))}
+          {data.matches.matches.map((match) => {
+            const connection = data.connections.items.find(
+              (item) => ["PENDING", "ACCEPTED"].includes(item.status) &&
+                ((item.source_post_id === postId && item.target_post_id === match.post.id) ||
+                 (item.target_post_id === postId && item.source_post_id === match.post.id)),
+            );
+            return (
+              <MatchCard
+                key={match.post.id}
+                match={match}
+                mode={data.matches.matching_mode}
+                isMock={isMock}
+                pending={pending === match.post.id}
+                connected={sent.includes(match.post.id) || Boolean(connection)}
+                incomingRequest={connection?.status === "PENDING" && connection.receiver_id === userId}
+                messageId={connection?.status === "ACCEPTED" ? connection.id : undefined}
+                onConnect={() => connect(match.post.id)}
+              />
+            );
+          })}
         </div>
       )}
       <Link className="button-secondary mt-6" to="/connections">

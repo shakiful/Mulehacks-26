@@ -164,6 +164,7 @@ export interface Message {
   sender: UserSummary;
   text: string;
   created_at: string;
+  security: SecurityResult;
 }
 export interface MessageQuery {
   limit?: number;

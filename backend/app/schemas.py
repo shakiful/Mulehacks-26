@@ -355,6 +355,7 @@ class MessageResponse(BaseModel):
     sender: Author
     text: str
     created_at: AwareDatetime
+    security: 'SecurityResult'
 
 
 class MessageList(BaseModel):

@@ -571,7 +571,10 @@ export function createMockApi({
       const thread = findThread(kind, id, user);
       if (!text.trim() || text.trim().length > 2000) fail(422, "VALIDATION_ERROR", "Enter 1 to 2000 characters.");
       const item: Message = { id: nextMessageId++, connection_id: kind === "connection" ? id : null,
-        join_id: kind === "join" ? id : null, sender: { id: user.id, name: user.name }, text: text.trim(), created_at: new Date().toISOString() };
+        join_id: kind === "join" ? id : null, sender: { id: user.id, name: user.name }, text: text.trim(), created_at: new Date().toISOString(),
+        // Scripted examples, explicitly labeled in the UI; the live server owns assessment.
+        security: clone(/password|verification code|\botp\b|javascript:|\/login/i.test(text)
+          ? fixtureData.chat_security_warning : fixtureData.message.security) as SecurityResult };
       messages.push(item);
       const requester = "requester_id" in thread ? thread.requester_id : thread.requester.id;
       const receiver = "receiver_id" in thread ? thread.receiver_id : thread.receiver.id;

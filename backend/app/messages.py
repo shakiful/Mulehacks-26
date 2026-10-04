@@ -3,7 +3,24 @@ from sqlalchemy import select
 
 from .errors import APIError
 from .models import Connection, Message, PostJoin
+from .schemas import SecurityInput
+from .security.service import HeuristicSecurityProvider
 from . import notifications
+
+
+CHAT_LIMITATIONS = ('Automatic rules check this message locally, without sending it to an AI provider. '
+                    'No link was visited and no sender or domain ownership was verified. '
+                    'LOW means fewer detected signals, not safe; rules can miss threats or flag legitimate messages. '
+                    'Chat messages remain saved in the local database; assessments are not saved separately.')
+
+
+def message_response(item):
+    # Apply the same local rules to historical, newly sent and paged messages.
+    # Provider settings must never cause background disclosure of private chat.
+    security = HeuristicSecurityProvider().analyze(SecurityInput(text=item.text))
+    security = security.model_copy(update={'limitations': CHAT_LIMITATIONS})
+    return {'id': item.id, 'connection_id': item.connection_id, 'join_id': item.join_id,
+            'sender': item.sender, 'text': item.text, 'created_at': item.created_at, 'security': security}
 
 
 def get_connection(db, user, connection_id):
@@ -38,7 +55,7 @@ def list_messages(db, user, kind, thread_id, limit, before_id, after_id):
     items = items[:limit]
     if after_id is None:
         items.reverse()
-    return {'items': items, 'has_more': more}
+    return {'items': [message_response(item) for item in items], 'has_more': more}
 
 
 def send_message(db, user, kind, thread_id, body):
@@ -50,4 +67,4 @@ def send_message(db, user, kind, thread_id, body):
     notifications.message_event(db, thread, item)
     db.commit()
     db.refresh(item)
-    return item
+    return message_response(item)

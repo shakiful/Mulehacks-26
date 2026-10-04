@@ -1,5 +1,5 @@
 import { ApiError } from "./errors";
-import type { ApiClient, ErrorEnvelope, StudentSession } from "./types";
+import type { ApiClient, ErrorEnvelope, Message, MessageList, StudentSession } from "./types";
 
 export function createLiveApi(
   baseUrl: string,
@@ -118,9 +118,9 @@ export function createLiveApi(
       Object.entries(query).forEach(([key, value]) => {
         if (value !== undefined) params.set(key, String(value));
       });
-      return request(`/${kind === "join" ? "joins" : "connections"}/${id}/messages${params.size ? `?${params}` : ""}`);
+      return request<MessageList>(`/${kind === "join" ? "joins" : "connections"}/${id}/messages${params.size ? `?${params}` : ""}`);
     },
-    sendMessage: (kind, id, text) => request(`/${kind === "join" ? "joins" : "connections"}/${id}/messages`, "POST", { text }),
+    sendMessage: (kind, id, text) => request<Message>(`/${kind === "join" ? "joins" : "connections"}/${id}/messages`, "POST", { text }),
     listNotifications: (query = {}) => {
       const params = new URLSearchParams();
       Object.entries(query).forEach(([key, value]) => {

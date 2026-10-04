@@ -12,6 +12,18 @@ const setup = () => createMockApi({ initialUser: fixtures.test_accounts[0], dela
 const select = (api: ReturnType<typeof setup>, user: "rafi" | "afsana") => api.login(user, "fixture-only");
 
 describe("join and message API adapters", () => {
+  it("preserves the server's automatic security result for sends and both paged thread reads", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => new Response(JSON.stringify(
+      String(url).endsWith("/auth/session") ? fixtures.signed_in_session
+        : String(url).includes("after_id") ? fixtures.message_list : fixtures.message,
+    )));
+    const api = createLiveApi("/api", fetcher);
+    await api.getSession();
+    const sent = await api.sendMessage("join", 21, "Synthetic example");
+    expect(sent.security).toEqual(fixtures.message.security);
+    for (const kind of ["join", "connection"] as const)
+      expect((await api.listMessages(kind, 21, { after_id: 1 })).items[0].security).toEqual(fixtures.message.security);
+  });
   it("uses the contracted routes, bodies, cookies and CSRF token for both thread types", async () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify(fixtures.signed_in_session)));
     const api = createLiveApi("/api/", fetcher);

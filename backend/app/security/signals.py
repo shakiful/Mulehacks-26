@@ -44,7 +44,7 @@ def detect_signals(text: str) -> dict[str, str]:
     find('URGENCY', r'\b(?:urgent(?:ly)?|immediately|act now|within \d+ (?:minutes|hours)|'
          r'account.{0,40}(?:expir\w*|suspend\w*|lock\w*).{0,24}(?:today|now))\b')
     find('CREDENTIAL_REQUEST', r'\b(?:enter|send|reply with|share|provide|confirm|verify|update)\s+'
-         r'(?:\w+\s+){0,6}(?:passwords?|credentials?|verification codes?|one.time codes?|'
+         r'(?:\w+\s+){0,6}(?:passwords?|credentials?|(?:verification|authentication|security|login) codes?|otps?|one.time codes?|'
          r'bank account (?:details|number)|social security number)\b', check_negation=True)
     find('PAYMENT_REQUEST', r'\b(?:send|pay|purchase|buy|transfer|wire)\s+(?:\w+\s+){0,5}'
          r'(?:money|funds|gift cards?|bitcoin|crypto(?:currency)?)\b', check_negation=True)
