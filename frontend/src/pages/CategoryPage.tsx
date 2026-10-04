@@ -3,7 +3,6 @@ import { Plus, Utensils, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Category } from "../api/types";
 import { CreatePost } from "../components/CreatePost";
-import { PostPreview } from "../components/PostPreview";
 import { PostBoard } from "../components/PostBoard";
 import { DiningMenus } from "../components/DiningMenus";
 import { categoryNames } from "../lib/posts";
@@ -40,22 +39,20 @@ export function CategoryPage({ category }: { category: Category }) {
           </button>}
           <button
           className="button-primary"
-          aria-expanded={creating}
-          aria-controls={`${category.toLowerCase()}-post-form`}
           onClick={() => setCreating(!creating)}
         >
           {creating ? <X size={16} /> : <Plus size={16} />}
-          {creating ? "Close form" : category === "RIDE" ? "Create ride post" : "Create a post"}
+          {creating ? "Close form" : "Create a post"}
           </button>
         </div>
       </div>
       {category === "RESTAURANT" && showMenus && <DiningMenus />}
       {creating && (
-        <div id={`${category.toLowerCase()}-post-form`} className="mb-8">
-          {category === "RIDE" ? <PostPreview category="RIDE" /> : <CreatePost
+        <div className="mb-8">
+          <CreatePost
             category={category}
             onCreated={(post) => navigate(`/posts/${post.id}/matches`)}
-          />}
+          />
         </div>
       )}
       {category === "RESTAURANT" && (
@@ -66,7 +63,7 @@ export function CategoryPage({ category }: { category: Category }) {
       )}
       <div className="section-heading mb-5">
         <h2>Open campus posts</h2>
-        <span>Your campus community</span>
+        <span>Local demo community</span>
       </div>
       <PostBoard category={category} />
     </>

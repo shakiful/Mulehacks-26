@@ -57,5 +57,5 @@ def install_handlers(app):
         headers = {}
         origin = request.headers.get('origin')
         if origin in request.app.state.settings.allowed_origins:
-            headers = {'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Vary': 'Origin'}
+            headers = {'Access-Control-Allow-Origin': origin, 'Vary': 'Origin'}
         return error_response(500, 'INTERNAL_ERROR', 'An unexpected error occurred.', headers=headers)

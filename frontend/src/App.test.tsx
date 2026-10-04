@@ -1,22 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
-import { ApiProvider, useApi } from "./context/ApiContext";
-import { createMockApi } from "./api/mock";
-import type { MockScenario } from "./api/mock";
+import { describe, expect, it } from "vitest";
+import { ApiProvider } from "./context/ApiContext";
 import { AppRoutes } from "./App";
-vi.mock("./components/RideRoutePicker", () => import("./test/MockRideRoutePicker"));
 
 function renderApp(path = "/") {
-  let scenario: MockScenario = "normal";
-  function ScenarioBridge() {
-    scenario = useApi().scenario;
-    return null;
-  }
   return render(
-    <ApiProvider mockMode client={createMockApi({ initialUser: { id: 1, name: "Rafi", username: "rafi" }, delayMs: 50, getScenario: () => scenario })}>
-      <ScenarioBridge />
+    <ApiProvider mockMode>
       <MemoryRouter initialEntries={[path]}>
         <AppRoutes />
       </MemoryRouter>
@@ -28,22 +19,12 @@ const navigationLink = (name: string) =>
     "link",
     { name },
   );
-async function switchStudent(user: ReturnType<typeof userEvent.setup>, username: string) {
-  await user.click(screen.getByRole("button", { name: "Log out" }));
-  await screen.findByRole("heading", { name: "Welcome back." });
-  await user.type(screen.getByRole("textbox", { name: "Username" }), username);
-  await user.type(screen.getByLabelText("Password"), "fixture-only");
-  await user.click(screen.getByRole("button", { name: "Sign in" }));
-  await screen.findByRole("navigation", { name: "Main navigation" });
-}
 describe("frontend workflows", () => {
   it("edits the author's existing post, returns to My posts, and keeps one record", async () => {
     const user = userEvent.setup();
     renderApp("/my-posts");
     await screen.findByRole("heading", { name: "Your open posts" }, { timeout: 3000 });
-    const card = (await screen.findByRole('heading', { name: 'Help with SQL joins' })).closest('article')!;
-    const postCount = screen.getAllByRole("article").length;
-    const edit = within(card).getByRole("link", { name: "Edit post" });
+    const edit = await screen.findByRole("link", { name: "Edit post" });
     expect(edit).toHaveAttribute("href", "/posts/42/edit");
     await user.click(edit);
     expect(await screen.findByRole("textbox", { name: "Post title" })).toHaveValue("Help with SQL joins");
@@ -53,12 +34,10 @@ describe("frontend workflows", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(await screen.findByText("Post updated. Your changes are saved.")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Updated SQL help" })).toBeInTheDocument();
-    expect(screen.getAllByRole("article")).toHaveLength(postCount);
-    expect(screen.getAllByRole('heading', { name: 'Updated SQL help' })).toHaveLength(1);
-    expect(within(screen.getByRole('heading', { name: 'Updated SQL help' }).closest('article')!)
-      .getByRole("link", { name: "Edit post" })).toHaveAttribute("href", "/posts/42/edit");
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Edit post" })).toHaveAttribute("href", "/posts/42/edit");
   });
-  it("cancels edits without saving and hides editing another student's post", async () => {
+  it("cancels edits without saving and rejects editing another profile's post", async () => {
     const user = userEvent.setup();
     renderApp("/posts/42/edit");
     const title = await screen.findByRole("textbox", { name: "Post title" });
@@ -66,20 +45,17 @@ describe("frontend workflows", () => {
     await user.type(title, "Unsaved title");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(await screen.findByRole("heading", { name: "Help with SQL joins" })).toBeInTheDocument();
-    await user.click(within(screen.getByRole('heading', { name: 'Help with SQL joins' }).closest('article')!)
-      .getByRole("link", { name: "Edit post" }));
+    await user.click(screen.getByRole("link", { name: "Edit post" }));
     await screen.findByRole("button", { name: "Save changes" });
-    await switchStudent(user, "afsana");
-    await user.click(navigationLink("Dashboard"));
-    await screen.findByRole("heading", { name: "Help with SQL joins" });
-    const card = screen.getByRole("heading", { name: "Help with SQL joins" }).closest("article")!;
-    expect(within(card).queryByRole("link", { name: "Edit post" })).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByRole("combobox", { name: "Demo profile" }), "2");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only the author can edit this post.");
+    expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
   });
-  it("shows loading, dashboard shortcuts, signed-in students, and empty/error recovery", async () => {
+  it("shows loading, dashboard shortcuts, synthetic profiles, and empty/error recovery", async () => {
     const user = userEvent.setup();
     renderApp();
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Checking your session",
+      "Loading demo profiles",
     );
     expect(
       await screen.findByRole("heading", { name: /Good things start/ }),
@@ -87,10 +63,11 @@ describe("frontend workflows", () => {
     expect(
       await screen.findByRole("heading", { name: "Help with SQL joins" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Demo profile" })).not.toBeInTheDocument();
-    expect(screen.getByText("Signed in as")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Demo profile" })).toHaveValue(
+      "1",
+    );
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Response states" }),
+      screen.getByRole("combobox", { name: "Demo responses" }),
       "empty",
     );
     expect(
@@ -99,14 +76,14 @@ describe("frontend workflows", () => {
       }),
     ).toBeInTheDocument();
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Response states" }),
+      screen.getByRole("combobox", { name: "Demo responses" }),
       "error",
     );
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "temporarily unavailable",
     );
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Response states" }),
+      screen.getByRole("combobox", { name: "Demo responses" }),
       "normal",
     );
     expect(
@@ -126,11 +103,14 @@ describe("frontend workflows", () => {
     expect(
       await screen.findByRole("button", { name: "Request sent" }),
     ).toBeDisabled();
-    await switchStudent(user, "afsana");
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Demo profile" }),
+      "2",
+    );
     await user.click(navigationLink("Connections"));
     const accept = await screen.findByRole("button", { name: "Accept" });
     expect(
-      screen.getByRole("heading", { name: "Request from Rafi" }),
+      screen.getByRole("heading", { name: "Request from Rafi (demo)" }),
     ).toBeInTheDocument();
     await user.click(accept);
     expect(
@@ -150,26 +130,23 @@ describe("frontend workflows", () => {
     const user = userEvent.setup();
     renderApp("/ride");
     await screen.findByRole("heading", { name: "Ride Connect" });
-    await user.click(screen.getByRole("button", { name: "Create ride post" }));
-    await user.type(screen.getByRole("textbox", { name: "Describe your ride" }), "Synthetic ride request to Walmart");
-    await user.click(screen.getByRole("button", { name: "Preview ride post" }));
-    await screen.findByRole("heading", { name: "A quick check before you connect." });
+    await user.click(screen.getByRole("button", { name: "Create a post" }));
     await user.click(screen.getByRole("button", { name: "Confirm & post" }));
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Correct the highlighted fields",
     );
-    await user.clear(screen.getByRole("textbox", { name: "Post title" }));
     await user.type(
       screen.getByRole("textbox", { name: "Post title" }),
       "Walmart ride",
     );
-    await user.type(screen.getByRole("combobox", { name: "From" }), "UCM");
-    await user.type(screen.getByRole("combobox", { name: "To" }), "Walmart");
+    await user.type(
+      screen.getByRole("textbox", { name: "Description" }),
+      "Synthetic ride request",
+    );
+    await user.type(screen.getByRole("textbox", { name: "From" }), "UCM");
+    await user.type(screen.getByRole("textbox", { name: "To" }), "Walmart");
     fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "2026-10-03" } });
     fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "18:00" } });
-    await user.click(screen.getByRole('button', { name: 'Show map (optional)' }));
-    await user.click(await screen.findByRole("button", { name: "Select From point" }));
-    await user.click(screen.getByRole("button", { name: "Select To point" }));
     await user.click(screen.getByRole("button", { name: "Confirm & post" }));
     expect(
       await screen.findByRole(
@@ -227,12 +204,12 @@ describe("frontend workflows", () => {
     await screen.findByRole("heading", {
       name: "A quick check before you connect.",
     });
-    expect(screen.getByRole("combobox", { name: "From" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "From" })).toHaveValue("");
     expect(
       screen.getByLabelText("Start date"),
     ).toHaveValue("");
     expect(
-      screen.getByText(/Please confirm: origin point, destination point, origin, destination, starts at/),
+      screen.getByText(/Please confirm: origin, destination, starts at/),
     ).toBeInTheDocument();
     await user.selectOptions(
       screen.getByRole("combobox", { name: "Category" }),

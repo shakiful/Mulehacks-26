@@ -1,4 +1,4 @@
-import type { Category, CreatePostInput, DraftDetails, FieldError } from "../api/types";
+import type { Category, CreatePostInput, FieldError } from "../api/types";
 
 export const categoryNames: Record<Category | "CYBERSECURITY", string> = {
   RIDE: "Ride Connect",
@@ -8,18 +8,12 @@ export const categoryNames: Record<Category | "CYBERSECURITY", string> = {
   CYBERSECURITY: "Security",
 };
 
-// Recognize only the numeric placeholders produced by the previous map picker.
-export const isCoordinateLabel = (value: unknown): boolean => typeof value === 'string'
-  && /^(?:Pickup|Destination)\s*\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)$/i.test(value.trim());
-export const ridePlaceLabel = (value: unknown, field: 'origin' | 'destination'): string =>
-  isCoordinateLabel(value) ? (field === 'origin' ? 'Selected pickup location' : 'Selected destination location') : String(value ?? '');
-
 export const blankDetails = (
   category: Category,
-): DraftDetails => {
+): Record<string, string | number | null> => {
   switch (category) {
     case "RIDE":
-      return { origin: "", destination: "", origin_point: null, destination_point: null, seats: 1, purpose: null };
+      return { origin: "", destination: "", seats: 1, purpose: null };
     case "STUDY":
       return { course: null, topic: null, skill_level: null, mode: null };
     case "RESTAURANT":
@@ -87,12 +81,6 @@ export function validatePost(input: CreatePostInput): FieldError[] {
   }
   switch (input.category) {
     case "RIDE":
-      for (const field of ["origin_point", "destination_point"] as const) {
-        const point = input.details[field];
-        if (!point || !Number.isFinite(point.lat) || !Number.isFinite(point.lng)
-          || Math.abs(point.lat) > 90 || Math.abs(point.lng) > 180)
-          add(`details.${field}`, `Choose a valid ${field === "origin_point" ? "From" : "To"} location from the suggestions or optional map.`);
-      }
       if (!nonempty(input.details.origin))
         add("details.origin", "Enter the starting location.");
       if (!nonempty(input.details.destination))

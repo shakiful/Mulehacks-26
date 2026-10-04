@@ -13,14 +13,11 @@ class Settings(BaseSettings):
         env_file=(ROOT / 'backend' / '.env', ROOT / '.env'), extra='ignore',
     )
 
+    demo_mode: bool = True
     database_url: str = 'sqlite:///' + (ROOT / 'backend' / 'connecthub.db').as_posix()
     cors_origins: str = 'http://localhost:5173'
-    seed_date: date | None = None
-    seed_timezone: str = 'America/Chicago'
-    rafi_login_password: SecretStr = SecretStr('')
-    afsana_login_password: SecretStr = SecretStr('')
-    session_cookie_secure: bool = False
-    session_lifetime_seconds: int = Field(default=43200, ge=300, le=604800)
+    demo_date: date | None = None
+    demo_timezone: str = 'America/Chicago'
     ai_provider: str = 'gemini'
     ai_model: str = 'gemini-3.5-flash-lite'
     ai_timeout_seconds: float = Field(default=30, gt=0, le=60, allow_inf_nan=False)
@@ -50,12 +47,12 @@ class Settings(BaseSettings):
                                      else 'gemini-embedding-001')
         return value
 
-    @field_validator('seed_date', mode='before')
+    @field_validator('demo_date', mode='before')
     @classmethod
     def empty_date(cls, value):
         return None if value == '' else value
 
-    @field_validator('seed_timezone')
+    @field_validator('demo_timezone')
     @classmethod
     def valid_timezone(cls, value):
         try:

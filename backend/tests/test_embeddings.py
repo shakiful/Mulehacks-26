@@ -1,4 +1,3 @@
-from backend.tests.auth_helpers import auth_headers
 import io
 import json
 from urllib.error import HTTPError
@@ -48,13 +47,13 @@ def semantic_client(settings):
 
 def post(client, study, author=1, **changes):
     body = {**study, **changes}
-    response = client.post('/api/posts', headers=auth_headers(client, author), json=body)
+    response = client.post('/api/posts', headers={'X-Demo-User-Id': str(author)}, json=body)
     assert response.status_code == 201, response.text
     return response.json()
 
 
 def match(client, source):
-    return client.post('/api/matches', headers=auth_headers(client, source['author']['id']),
+    return client.post('/api/matches', headers={'X-Demo-User-Id': str(source['author']['id'])},
                        json={'post_id': source['id'], 'limit': 20})
 
 
@@ -189,7 +188,7 @@ def test_unavailable_provider_503_hides_secrets_and_preserves_created_post(seman
     response = match(client, source)
     assert response.status_code == 503 and response.json()['error']['code'] == 'PROVIDER_UNAVAILABLE'
     assert 'secret-key' not in response.text and 'private provider' not in response.text
-    assert client.get(f"/api/posts/{source['id']}", headers=auth_headers(client, 1)).status_code == 200
+    assert client.get(f"/api/posts/{source['id']}", headers={'X-Demo-User-Id': '1'}).status_code == 200
 
 
 def test_cached_model_mismatch_and_provider_failure_never_mix_vectors(semantic_client, study):
@@ -217,9 +216,9 @@ def test_hard_gates_and_authorization_run_before_embedding_calls(semantic_client
         post(client, study, author=3, intent='OFFER', title='DISJOINT_ONLY', starts_at='2026-10-03T19:00:00-05:00', ends_at='2026-10-03T20:00:00-05:00'),
     ]
     closed = post(client, study, author=4, intent='OFFER', title='CLOSED_ONLY')
-    client.patch(f"/api/posts/{closed['id']}", headers=auth_headers(client, 4), json={'status': 'COMPLETED'})
+    client.patch(f"/api/posts/{closed['id']}", headers={'X-Demo-User-Id': '4'}, json={'status': 'COMPLETED'})
     excluded.append(closed)
-    assert client.post('/api/matches', headers=auth_headers(client, 2), json={'post_id': source['id']}).status_code == 403
+    assert client.post('/api/matches', headers={'X-Demo-User-Id': '2'}, json={'post_id': source['id']}).status_code == 403
     assert provider.calls == []
     result = match(client, source).json()
     assert not set(item['id'] for item in excluded) & set(item['post']['id'] for item in result['matches'])
@@ -231,8 +230,7 @@ def test_ride_and_empty_candidates_do_not_call_provider_even_with_fallback_disab
     provider.failure = TimeoutError('unavailable')
     client.app.state.settings.ai_fallback_enabled = False
     ride = post(client, {'category': 'RIDE', 'intent': 'REQUEST', 'title': 'Demo ride', 'text': 'Synthetic demo ride',
-                        'starts_at': '2026-10-03T18:00:00-05:00', 'details': {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1,
-                        'origin_point': {'lat': 38.7625, 'lng': -93.7395}, 'destination_point': {'lat': 38.7905, 'lng': -93.7390}}})
+                        'starts_at': '2026-10-03T18:00:00-05:00', 'details': {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1}})
     assert match(client, ride).json()['matching_mode'] == 'HEURISTIC'
     empty = post(client, study, intent='PARTNER', details={'topic': 'SQL', 'mode': 'IN_PERSON'})
     assert match(client, empty).json()['matches'] == []

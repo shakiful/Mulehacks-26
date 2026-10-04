@@ -1,11 +1,11 @@
+import re
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
 from .errors import APIError
 from .models import User
-from .auth import authenticated, check_csrf
 
 
 def get_db(request: Request):
@@ -16,13 +16,18 @@ def get_db(request: Request):
 DB = Annotated[Session, Depends(get_db)]
 
 
-def current_user(request: Request, db: DB) -> User:
-    identity = authenticated(request, db)
-    if identity is None:
-        raise APIError(401, 'UNAUTHORIZED', 'Sign in to continue.')
-    if request.method not in ('GET', 'HEAD', 'OPTIONS'):
-        check_csrf(request, identity[2])
-    return identity[0]
+def demo_user(
+    request: Request, db: DB,
+    identity: Annotated[str | None, Header(alias='X-Demo-User-Id')] = None,
+) -> User:
+    if not request.app.state.settings.demo_mode:
+        raise APIError(401, 'UNAUTHORIZED', 'Demo identity is disabled; authentication is unavailable.')
+    if identity is None or not re.fullmatch(r'[1-9][0-9]*', identity) or len(identity) > 10:
+        raise APIError(401, 'UNAUTHORIZED', 'Select an existing synthetic demo profile.')
+    user = db.get(User, int(identity))
+    if user is None or not user.is_demo:
+        raise APIError(401, 'UNAUTHORIZED', 'Select an existing synthetic demo profile.')
+    return user
 
 
-CurrentUser = Annotated[User, Depends(current_user)]
+CurrentUser = Annotated[User, Depends(demo_user)]

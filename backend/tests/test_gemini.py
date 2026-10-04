@@ -74,9 +74,8 @@ def test_gemini_missing_ride_fields_are_computed_and_never_defaulted(gemini_sett
         starts_at='2026-10-03T18:00:00-05:00', details={'destination': 'Walmart'})
     result = GeminiUnderstandingProvider(gemini_settings, opener=opener_for(response(body))).preview(
         request('I need a ride to Walmart around 6 tonight'))
-    assert result.details == {'origin': None, 'destination': 'Walmart', 'seats': None, 'purpose': None,
-                              'origin_point': None, 'destination_point': None}
-    assert result.missing_fields == ['details.origin', 'details.seats', 'details.origin_point', 'details.destination_point']
+    assert result.details == {'origin': None, 'destination': 'Walmart', 'seats': None, 'purpose': None}
+    assert result.missing_fields == ['details.origin', 'details.seats']
     assert result.starts_at == datetime.fromisoformat('2026-10-03T23:00:00Z')
 
 
