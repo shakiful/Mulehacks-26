@@ -224,5 +224,53 @@
   "signed_out_session": {
     "user": null,
     "csrf_token": null
+  },
+  "dining_menus": {
+    "date": "2026-10-04",
+    "timezone": "America/Chicago",
+    "fetched_at": "2026-10-04T15:00:00Z",
+    "halls": [
+      {
+        "id": "todd",
+        "name": "Todd Dining Center",
+        "source_url": "https://ucmo.sodexomyway.com/en-us/locations/todd-dining-center-in-todd-hall",
+        "status": "AVAILABLE",
+        "message": null,
+        "meals": [
+          {
+            "name": "Brunch",
+            "stations": [
+              {
+                "name": "Synthetic demo station",
+                "items": [
+                  "Example breakfast bowl",
+                  "Example fruit cup"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ellis",
+        "name": "Ellis Dining Center",
+        "source_url": "https://ucmo.sodexomyway.com/en-us/locations/ellis-dining-center",
+        "status": "AVAILABLE",
+        "message": null,
+        "meals": [
+          {
+            "name": "Dinner",
+            "stations": [
+              {
+                "name": "Synthetic demo station",
+                "items": [
+                  "Example vegetable pasta"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

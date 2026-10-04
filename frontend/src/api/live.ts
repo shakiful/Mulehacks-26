@@ -87,6 +87,7 @@ export function createLiveApi(
     login: (username, password) => sessionRequest("/auth/login", "POST", { username, password }),
     getSession: () => sessionRequest("/auth/session"),
     logout: () => sessionRequest("/auth/logout", "POST", undefined, true),
+    getDiningMenus: () => request("/dining/menus", "GET", undefined, false),
     understand: (input) => request("/understand", "POST", input),
     createPost: (input) => request("/posts", "POST", input),
     listPosts: (query = {}) => {

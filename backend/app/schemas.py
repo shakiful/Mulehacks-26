@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -10,6 +11,32 @@ Intent = Literal['REQUEST', 'OFFER', 'PARTNER']
 PostStatus = Literal['OPEN', 'COMPLETED', 'CANCELLED']
 Nonempty = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 PositiveInt = Annotated[int, Field(strict=True, ge=1)]
+
+
+class DiningStation(BaseModel):
+    name: str
+    items: list[str]
+
+
+class DiningMeal(BaseModel):
+    name: str
+    stations: list[DiningStation]
+
+
+class DiningHallMenu(BaseModel):
+    id: Literal['todd', 'ellis']
+    name: str
+    source_url: str
+    status: Literal['AVAILABLE', 'EMPTY', 'UNAVAILABLE']
+    message: str | None
+    meals: list[DiningMeal]
+
+
+class DiningMenus(BaseModel):
+    date: date
+    timezone: Literal['America/Chicago']
+    fetched_at: AwareDatetime
+    halls: list[DiningHallMenu]
 
 
 class InputModel(BaseModel):
@@ -269,3 +296,21 @@ class ConnectionResponse(BaseModel):
 
 class ConnectionList(BaseModel):
     items: list[ConnectionResponse]
+
+
+class SecurityInput(InputModel):
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=8000)]
+
+
+class SecurityReason(InputModel):
+    code: Annotated[str, StringConstraints(min_length=1, max_length=40)]
+    description: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+
+
+class SecurityResult(InputModel):
+    risk_level: Literal['LOW', 'MEDIUM', 'HIGH']
+    summary: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+    reasons: list[SecurityReason] = Field(max_length=10)
+    recommendation: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
+    limitations: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
+    analysis_mode: Literal['LLM', 'HEURISTIC']

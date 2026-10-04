@@ -4,12 +4,12 @@ Students previously selected a demo profile, and the backend trusted a demo iden
 
 The user authorized backend authentication for this frontend task. The API contract now defines login/session/logout and credentialed cookie requests with CSRF protection. The live adapter, fixture adapter and consumers use the same methods. Backend passwords are salted hashes, session tokens are random and stored hashed, and login attempts are throttled. The demo selector, listing endpoint, accepted identity header, demo settings and legacy demo flag are removed. Existing post and connection records are preserved during migration; only Rafi and Afsana are provisioned as login accounts. Passwords, database files and the migration backup remain local and ignored.
 
-Study and Security retain the agreed Person 2 page paths and shared API/components. University SSO, self-registration and password recovery remain outside the local prototype; the private Security analyzer is still pending. Setup and test-account instructions are in README.md.
+Study and Security retain the agreed Person 2 page paths and shared API/components. Remote main's private Security analyzer and daily dining menus are integrated with student sessions; the old demo identity API is not restored. University SSO, self-registration and password recovery remain outside the local prototype. Setup and test-account instructions are in README.md.
 
 Validation:
 
-- `python -m pytest backend/tests -q`: 243 passing tests, including authentication, cookie/CSRF handling, logout replay rejection and legacy-data migration.
-- `cd frontend && npm run check -- --maxWorkers=2`: TypeScript and 62 passing tests.
+- `python -m pytest backend/tests -q`: 309 passing tests, including authentication, cookie/CSRF handling, logout replay rejection and legacy-data migration.
+- `cd frontend && npm run check -- --maxWorkers=2`: TypeScript and 77 passing tests.
 - `cd frontend && npm run build`: production build passed.
 - Live Chrome: both student accounts, incorrect password, session reload, HttpOnly cookies, revoked logout cookies, edit ownership, same-route 10 PM matching at 100/100, and Rafi request → Afsana acceptance.
 - Desktop/mobile login screenshots reviewed; synthetic browser-test posts cancelled, existing posts unchanged.

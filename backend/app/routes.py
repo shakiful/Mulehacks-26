@@ -9,6 +9,7 @@ from .schemas import (
     Category, Health, LoginInput, SessionResponse, PostCreate, PostList, PostResponse, PostStatus, StatusUpdate,
     ConnectionInput, ConnectionList, ConnectionResponse, ConnectionStatus, ConnectionUpdate,
     MatchInput, MatchResponse, UnderstandInput, Understanding,
+    SecurityInput, SecurityResult, DiningMenus,
 )
 
 router = APIRouter(prefix='/api')
@@ -34,6 +35,13 @@ def session(request: Request, response: Response, db: DB):
 @router.post('/auth/logout', response_model=SessionResponse)
 def logout(request: Request, response: Response, db: DB):
     return auth.logout(db, request, response)
+
+
+@router.get('/dining/menus', response_model=DiningMenus)
+def dining_menus(request: Request, response: Response):
+    # Public campus information; no identity, submitted URLs or database reads.
+    response.headers['Cache-Control'] = 'no-store'
+    return request.app.state.dining.today()
 
 
 @router.post('/posts', response_model=PostResponse, status_code=201)
@@ -91,3 +99,9 @@ def inbox(db: DB, user: CurrentUser, status: ConnectionStatus | None = None):
 @router.patch('/connections/{connection_id}', response_model=ConnectionResponse)
 def update_connection(connection_id: Annotated[int, Path(ge=1)], body: ConnectionUpdate, db: DB, user: CurrentUser):
     return connections.transition(db, user, connection_id, body.status)
+
+
+@router.post('/security/analyze', response_model=SecurityResult)
+def analyze_security(body: SecurityInput, request: Request, response: Response, user: CurrentUser):
+    response.headers['Cache-Control'] = 'no-store'
+    return request.app.state.security.analyze(body)
