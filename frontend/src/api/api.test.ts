@@ -17,6 +17,18 @@ const sampleInput = (): CreatePostInput => {
 };
 
 describe("live API contract", () => {
+  it("saves the full edit body to the existing post with PUT and demo ownership header", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(fixtures.post_edit.response)));
+    const api = createLiveApi("/api", () => 1, fetcher);
+    const input = structuredClone(fixtures.post_edit.request) as CreatePostInput;
+    expect(await api.editPost(42, input)).toEqual(fixtures.post_edit.response);
+    expect(fetcher).toHaveBeenCalledWith("/api/posts/42", {
+      method: "PUT", headers: { Accept: "application/json", "Content-Type": "application/json", "X-Demo-User-Id": "1" },
+      body: JSON.stringify(input),
+    });
+    expect(input).not.toHaveProperty("author");
+    expect(input).not.toHaveProperty("status");
+  });
   it("uses exact routes, snake_case bodies, and the selected identity only on protected requests", async () => {
     let identity = 1;
     const fetcher = vi.fn<typeof fetch>(
@@ -134,6 +146,47 @@ describe("fixture mock behavior", () => {
       },
     };
   };
+  it("edits in place, preserves identity/creation metadata, clears optional fields, and drops stale fixture scores", async () => {
+    const { api } = setup();
+    const before = await api.getPost(42);
+    expect((await api.getMatches(42)).matches).toHaveLength(1);
+    const input = structuredClone(fixtures.post_edit.request) as CreatePostInput;
+    const saved = await api.editPost(42, input);
+    expect(saved).toMatchObject({ ...input, id: before.id, author: before.author,
+      status: before.status, created_at: before.created_at });
+    expect(saved.updated_at).not.toBe(before.updated_at);
+    saved.title = "client mutation";
+    input.details = { ...input.details, topic: "client mutation" } as typeof input.details;
+    expect((await api.getPost(42)).title).toBe(fixtures.post_edit.request.title);
+    expect((await api.listPosts()).total).toBe(2);
+    expect((await api.getMatches(42)).matches).toEqual([]);
+  });
+  it("rejects unauthorized, missing, invalid, recategorized, and closed post edits without changing data", async () => {
+    const { api, select } = setup();
+    const original = await api.getPost(42);
+    select(2);
+    await expect(api.editPost(42, sampleInput())).rejects.toMatchObject({ status: 403 });
+    select(null);
+    await expect(api.editPost(42, sampleInput())).rejects.toMatchObject({ status: 401 });
+    select(1);
+    await expect(api.editPost(999, sampleInput())).rejects.toMatchObject({ status: 404 });
+    await expect(api.editPost(42, { ...sampleInput(), title: "" })).rejects.toMatchObject({ status: 422 });
+    await expect(api.editPost(42, { ...sampleInput(), category: "COMMUNITY" } as CreatePostInput)).rejects.toMatchObject({ status: 400 });
+    expect(await api.getPost(42)).toEqual(original);
+    await api.updatePost(42, "COMPLETED");
+    await expect(api.editPost(42, sampleInput())).rejects.toMatchObject({ status: 409 });
+  });
+  it("invalidates scripted matches when the target is edited and preserves existing connections", async () => {
+    const { api, select } = setup();
+    const connection = await api.createConnection(42, 7);
+    select(2);
+    const target = await api.getPost(7);
+    const { id: _id, author: _author, status: _status, created_at: _created, updated_at: _updated, ...input } = target;
+    await api.editPost(7, { ...input, title: "Updated tutoring offer" });
+    expect((await api.listConnections()).items).toEqual([connection]);
+    select(1);
+    expect((await api.getMatches(42)).matches).toEqual([]);
+  });
   it("loads source fixtures, respects category/status/owner filters and pagination", async () => {
     const { api } = setup();
     expect(await api.listDemoUsers()).toEqual(fixtures.demo_users);

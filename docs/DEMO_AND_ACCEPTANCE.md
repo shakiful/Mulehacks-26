@@ -21,6 +21,7 @@ Seed ride offers to Walmart at 17:45 and 18:15 with enough seats, a SQL/relation
 - Security analysis never visits submitted links, persists submitted messages or returns secrets; LOW is not labeled safe.
 - Provider timeout/malformed output has a tested fallback or standard 503.
 - UI works against real API as well as fixtures; loading/error/empty states behave correctly.
+- Calendar/time controls accept October 4, 2026 at 10:00 PM campus time, persist the equivalent UTC instant, and reload as the same campus date/time. Partial date/time entries, invalid end ordering and daylight-saving ambiguity require correction or clarification. Same-route rides from different profiles at the selected instant match when capacity is sufficient.
 - Backend tests pass and frontend production build passes. Record actual commands in README once code exists.
 
 ## Remaining project decisions

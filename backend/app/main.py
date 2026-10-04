@@ -30,7 +30,7 @@ def create_app(settings: Settings | None = None, *, embedding_provider=None) -> 
     app.add_middleware(
         APICORSMiddleware,
         allow_origins=settings.allowed_origins,
-        allow_methods=['GET', 'POST', 'PATCH'],
+        allow_methods=['GET', 'POST', 'PUT', 'PATCH'],
         allow_headers=['Content-Type', 'X-Demo-User-Id'],
     )
     install_handlers(app)

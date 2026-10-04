@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createMockApi } from "../api/mock";
@@ -53,8 +53,10 @@ describe("conversational post clarification", () => {
       text: "I need help studying SQL joins tonight\nAdditional details: Tonight from six to seven pm, in person at the Library." });
     expect(screen.getByRole("textbox", { name: "Location (optional)" })).toHaveValue("Library");
     expect(screen.getByRole("combobox", { name: "Meeting mode" })).toHaveValue("IN_PERSON");
-    expect(screen.getByRole("textbox", { name: "Start date & time (optional)" })).toHaveValue("2026-10-03T18:00:00-05:00");
-    expect(screen.getByRole("textbox", { name: "End date & time (optional)" })).toHaveValue("2026-10-03T19:00:00-05:00");
+    expect(screen.getByLabelText("Start date (optional)")).toHaveValue("2026-10-03");
+    expect(screen.getByLabelText("Start time (optional)")).toHaveValue("18:00");
+    expect(screen.getByLabelText("End date (optional)")).toHaveValue("2026-10-03");
+    expect(screen.getByLabelText("End time (optional)")).toHaveValue("19:00");
     expect(screen.queryByRole("region", { name: "Missing details" })).not.toBeInTheDocument();
     expect(createPost).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Confirm & post" }));
@@ -68,6 +70,8 @@ describe("conversational post clarification", () => {
     await user.clear(screen.getByRole("textbox", { name: "Course" }));
     await user.type(screen.getByRole("textbox", { name: "Course" }), "CS 201");
     await user.type(screen.getByRole("textbox", { name: "Location (optional)" }), "Student Union");
+    fireEvent.change(screen.getByLabelText("Start date (optional)"), { target: { value: "2026-10-04" } });
+    fireEvent.change(screen.getByLabelText("Start time (optional)"), { target: { value: "22:00" } });
     understand.mockImplementation(async (input) => study({ text: input.text, location: "Library",
       starts_at: "2026-10-03T18:00:00-05:00", ends_at: "2026-10-03T19:00:00-05:00",
       details: { course: "SQL", topic: "joins", skill_level: null, mode: "IN_PERSON" } }));
@@ -76,7 +80,8 @@ describe("conversational post clarification", () => {
     await screen.findByText(/Your form is updated/);
     expect(screen.getByRole("textbox", { name: "Course" })).toHaveValue("CS 201");
     expect(screen.getByRole("textbox", { name: "Location (optional)" })).toHaveValue("Student Union");
-    expect(screen.getByRole("textbox", { name: "Start date & time (optional)" })).toHaveValue("2026-10-03T18:00:00-05:00");
+    expect(screen.getByLabelText("Start date (optional)")).toHaveValue("2026-10-04");
+    expect(screen.getByLabelText("Start time (optional)")).toHaveValue("22:00");
   });
 
   it("retains valid extracted facts during offline fallback and displays its mode", async () => {

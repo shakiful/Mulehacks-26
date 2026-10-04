@@ -8,6 +8,7 @@ import SecurityPage from "./pages/SecurityPage";
 import { MatchesPage } from "./pages/MatchesPage";
 import { ConnectionsPage } from "./pages/ConnectionsPage";
 import { MyPostsPage } from "./pages/MyPostsPage";
+import { EditPostPage } from "./pages/EditPostPage";
 
 export function AppRoutes() {
   return (
@@ -31,6 +32,7 @@ export function AppRoutes() {
         <Route path="my-posts" element={<MyPostsPage />} />
         <Route path="connections" element={<ConnectionsPage />} />
         <Route path="posts/:id/matches" element={<MatchesPage />} />
+        <Route path="posts/:id/edit" element={<EditPostPage />} />
         <Route
           path="*"
           element={

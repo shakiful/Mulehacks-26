@@ -12,35 +12,46 @@ import type {
 import { useApi } from "../context/ApiContext";
 import { blankDetails, categoryNames, validatePost } from "../lib/posts";
 import { questionsForDraft } from "../lib/clarifications";
+import { CAMPUS_TIME_ZONE, fromTimestamp, resolveDateTime, type DateTimeDraft } from "../lib/dateTime";
 import { ErrorState } from "./States";
 import { Field } from "./Field";
+import { DateTimeFields } from "./DateTimeFields";
 
 export function CreatePost({
   category = "RIDE",
   preview,
   previewContext,
+  initialPost,
+  onCancel,
   onCreated,
 }: {
   category?: Category;
   preview?: Understanding;
   previewContext?: { reference_time: string; timezone: string };
+  initialPost?: Post;
+  onCancel?: () => void;
   onCreated: (post: Post) => void;
 }) {
   const { api } = useApi();
+  const initial = initialPost ?? preview;
   const [selectedCategory, setCategory] = useState<Category>(
-    preview && preview.category !== "CYBERSECURITY"
-      ? preview.category
+    initial && initial.category !== "CYBERSECURITY"
+      ? initial.category
       : category,
   );
-  const [intent, setIntent] = useState<Intent>(preview?.intent ?? "REQUEST");
-  const [title, setTitle] = useState(preview?.title ?? "");
-  const [text, setText] = useState(preview?.text ?? "");
-  const [location, setLocation] = useState(preview?.location ?? "");
-  const [startsAt, setStartsAt] = useState(preview?.starts_at ?? "");
-  const [endsAt, setEndsAt] = useState(preview?.ends_at ?? "");
+  const [intent, setIntent] = useState<Intent>(initial?.intent ?? "REQUEST");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [text, setText] = useState(initial?.text ?? "");
+  const [location, setLocation] = useState(initial?.location ?? "");
+  const [startDateTime, setStartDateTime] = useState(() => fromTimestamp(initial?.starts_at));
+  const [endDateTime, setEndDateTime] = useState(() => fromTimestamp(initial?.ends_at));
+  const startResolution = resolveDateTime(startDateTime);
+  const endResolution = resolveDateTime(endDateTime);
+  const startsAt = startResolution.timestamp ?? "";
+  const endsAt = endResolution.timestamp ?? "";
   const [details, setDetails] = useState<
     Record<string, string | number | null>
-  >(preview?.details ?? blankDetails(category));
+  >(initialPost ? { ...initialPost.details } : preview?.details ?? blankDetails(selectedCategory));
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [requestError, setRequestError] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
@@ -52,7 +63,7 @@ export function CreatePost({
   const dirty = useRef(new Set<string>());
   const context = useRef(previewContext ?? {
     reference_time: new Date().toISOString(),
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone: CAMPUS_TIME_ZONE,
   });
   const questions = preview ? questionsForDraft({
     category: selectedCategory, intent, location, starts_at: startsAt, ends_at: endsAt, details,
@@ -64,6 +75,10 @@ export function CreatePost({
     setDetails((current) => ({ ...current, [key]: value }));
   };
   const edit = (field: string, setter: (value: string) => void, value: string) => {
+    dirty.current.add(field);
+    setter(value);
+  };
+  const editDateTime = (field: string, setter: (value: DateTimeDraft) => void, value: DateTimeDraft) => {
     dirty.current.add(field);
     setter(value);
   };
@@ -88,8 +103,8 @@ export function CreatePost({
       if (!dirty.current.has("intent")) setIntent(result.intent);
       const authoritative = result.analysis_mode === "LLM";
       if (!dirty.current.has("location") && (authoritative || result.location?.trim())) setLocation(result.location ?? "");
-      if (!dirty.current.has("starts_at") && (authoritative || result.starts_at)) setStartsAt(result.starts_at ?? "");
-      if (!dirty.current.has("ends_at") && (authoritative || result.ends_at)) setEndsAt(result.ends_at ?? "");
+      if (!dirty.current.has("starts_at") && (authoritative || result.starts_at)) setStartDateTime(fromTimestamp(result.starts_at));
+      if (!dirty.current.has("ends_at") && (authoritative || result.ends_at)) setEndDateTime(fromTimestamp(result.ends_at));
       setDetails((current) => {
         const updated = { ...current };
         for (const [name, value] of Object.entries(result.details!)) {
@@ -174,13 +189,18 @@ export function CreatePost({
       ends_at: endsAt.trim() || null,
       details,
     } as unknown as CreatePostInput;
-    const validation = validatePost(input);
+    const timeErrors: FieldError[] = [];
+    if (startResolution.error) timeErrors.push({ field: "starts_at", message: startResolution.error });
+    if (endResolution.error) timeErrors.push({ field: "ends_at", message: endResolution.error });
+    const validation = [...timeErrors, ...validatePost(input).filter((error) => !timeErrors.some((time) => time.field === error.field))];
     setErrors(validation);
     setRequestError(null);
     if (validation.length) return;
     setPending(true);
     try {
-      const post = await api.createPost(input);
+      const post = initialPost
+        ? await api.editPost(initialPost.id, input)
+        : await api.createPost(input);
       onCreated(post);
     } catch (error) {
       setRequestError(error);
@@ -198,12 +218,14 @@ export function CreatePost({
         </span>
         <div>
           <h2 className="text-xl font-semibold tracking-tight">
-            {preview
+            {initialPost ? "Edit your post" : preview
               ? "A quick check before you connect."
               : "Start a new connection"}
           </h2>
           <p className="mt-1 text-sm text-stone-500">
-            {preview
+            {initialPost
+              ? "Update your details, then save your changes."
+              : preview
               ? "Review and correct the extracted details. You decide what gets posted."
               : "Share what you need, or something you can offer."}
           </p>
@@ -259,7 +281,7 @@ export function CreatePost({
       {refineMessage && <p role="status" className="notice mt-4">{refineMessage}</p>}
       {errors.length > 0 && (
         <div className="error-panel mt-5" role="alert">
-          Correct the highlighted fields before posting.
+          Correct the highlighted fields before {initialPost ? "saving" : "posting"}.
         </div>
       )}
       {requestError !== null && (
@@ -273,6 +295,7 @@ export function CreatePost({
             <select
               {...props}
               value={selectedCategory}
+              disabled={Boolean(initialPost)}
               onChange={(event) => {
                 const next = event.target.value as Category;
                 setCategory(next);
@@ -422,38 +445,11 @@ export function CreatePost({
             />
           )}
         </Field>
-        <Field
-          label={
-            ["RIDE", "RESTAURANT"].includes(selectedCategory)
-              ? "Start date & time"
-              : "Start date & time (optional)"
-          }
-          error={fieldError("starts_at")}
-          hint="Include the UTC offset, e.g. 2026-10-03T18:00:00-05:00. Confirm the date yourself."
-        >
-          {(props) => (
-            <input
-              {...props}
-              value={startsAt}
-              placeholder="YYYY-MM-DDTHH:MM:SS±HH:MM"
-              onChange={(event) => edit("starts_at", setStartsAt, event.target.value)}
-            />
-          )}
-        </Field>
-        <Field
-          label="End date & time (optional)"
-          error={fieldError("ends_at")}
-          hint="Use an ISO timestamp with a UTC offset; must be after the start."
-        >
-          {(props) => (
-            <input
-              {...props}
-              value={endsAt}
-              placeholder="YYYY-MM-DDTHH:MM:SS±HH:MM"
-              onChange={(event) => edit("ends_at", setEndsAt, event.target.value)}
-            />
-          )}
-        </Field>
+        <DateTimeFields label="Start" value={startDateTime} error={fieldError("starts_at")}
+          required={["RIDE", "RESTAURANT"].includes(selectedCategory)}
+          onChange={(value) => editDateTime("starts_at", setStartDateTime, value)} />
+        <DateTimeFields label="End" value={endDateTime} error={fieldError("ends_at")}
+          onChange={(value) => editDateTime("ends_at", setEndDateTime, value)} />
       </fieldset>
       {selectedCategory === "RESTAURANT" && (
         <p className="mt-5 text-xs text-stone-500">
@@ -461,14 +457,29 @@ export function CreatePost({
           capacity.
         </p>
       )}
+      {initialPost && (
+        <p className="notice mt-5">
+          Changes affect future matches. Existing connection requests stay in your
+          inbox; coordinate changed details with the other person.
+        </p>
+      )}
       <div className="mt-6 flex items-center justify-between gap-4 border-t border-stone-100 pt-5">
         <p className="max-w-xs text-xs text-stone-500">
           This post is public within the local demo. Use synthetic details.
         </p>
-        <button className="button-primary" disabled={pending || refining} type="submit">
-          {pending ? "Posting…" : "Confirm & post"}
-          <ArrowRight size={16} />
-        </button>
+        <div className="flex flex-wrap justify-end gap-3">
+          {initialPost && onCancel && (
+            <button className="button-secondary" disabled={pending} type="button" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
+          <button className="button-primary" disabled={pending || refining} type="submit">
+            {initialPost
+              ? pending ? "Saving…" : "Save changes"
+              : pending ? "Posting…" : "Confirm & post"}
+            <ArrowRight size={16} />
+          </button>
+        </div>
       </div>
     </form>
   );
