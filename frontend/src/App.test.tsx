@@ -144,18 +144,18 @@ describe("frontend workflows", () => {
     const user = userEvent.setup();
     renderApp("/ride");
     await screen.findByRole("heading", { name: "Ride Connect" });
-    await user.click(screen.getByRole("button", { name: "Create a post" }));
+    await user.click(screen.getByRole("button", { name: "Create ride post" }));
+    await user.type(screen.getByRole("textbox", { name: "Describe your ride" }), "Synthetic ride request to Walmart");
+    await user.click(screen.getByRole("button", { name: "Preview ride post" }));
+    await screen.findByRole("heading", { name: "A quick check before you connect." });
     await user.click(screen.getByRole("button", { name: "Confirm & post" }));
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Correct the highlighted fields",
     );
+    await user.clear(screen.getByRole("textbox", { name: "Post title" }));
     await user.type(
       screen.getByRole("textbox", { name: "Post title" }),
       "Walmart ride",
-    );
-    await user.type(
-      screen.getByRole("textbox", { name: "Description" }),
-      "Synthetic ride request",
     );
     await user.type(screen.getByRole("textbox", { name: "From" }), "UCM");
     await user.type(screen.getByRole("textbox", { name: "To" }), "Walmart");
