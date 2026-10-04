@@ -14,6 +14,8 @@ def settings(tmp_path):
         _env_file=None, database_url='sqlite:///' + (tmp_path / 'test.db').as_posix(),
         demo_mode=True, demo_date=date(2026, 10, 3), demo_timezone='America/Chicago',
         cors_origins='http://localhost:5173',
+        openai_api_key='',
+        ai_provider='heuristic', ai_fallback_enabled=True, embedding_provider='heuristic',
     )
 
 

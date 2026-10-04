@@ -2,7 +2,7 @@ from datetime import date
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,6 +20,18 @@ class Settings(BaseSettings):
     demo_timezone: str = 'America/Chicago'
     ai_provider: str = 'heuristic'
     ai_fallback_enabled: bool = True
+    embedding_provider: str = 'heuristic'
+    embedding_model: str = 'text-embedding-3-small'
+    embedding_dimensions: int = Field(default=1536, ge=1, le=3072)
+    embedding_timeout_seconds: float = Field(default=10, gt=0, le=60, allow_inf_nan=False)
+    openai_api_key: SecretStr = SecretStr('')
+
+    @field_validator('embedding_model', mode='before')
+    @classmethod
+    def default_embedding_model(cls, value):
+        if isinstance(value, str):
+            return value.strip() or 'text-embedding-3-small'
+        return value
 
     @field_validator('demo_date', mode='before')
     @classmethod

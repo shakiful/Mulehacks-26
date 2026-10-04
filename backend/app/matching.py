@@ -2,6 +2,7 @@
 from sqlalchemy import select
 
 from .ai.understanding import normalized
+from .ai.embeddings import EmbeddingResult, cosine_similarity
 from .errors import APIError
 from .models import Post
 from .posts import get_post
@@ -58,7 +59,7 @@ def compatible(source: Post, target: Post) -> bool:
     return True
 
 
-def score_pair(source: Post, target: Post):
+def score_pair(source: Post, target: Post, semantic_similarity=None):
     reasons, warnings = [], []
     if source.category == 'RIDE':
         minutes = abs((source.starts_at - target.starts_at).total_seconds()) / 60
@@ -66,10 +67,11 @@ def score_pair(source: Post, target: Post):
         reasons = ['Same confirmed origin and destination', f'Departures are {minutes:g} minutes apart',
                    'Offered seats cover the requested seats']
     else:
-        semantic = overlap(source.title + ' ' + source.text, target.title + ' ' + target.text)
+        semantic = semantic_similarity if semantic_similarity is not None else overlap(source.title + ' ' + source.text, target.title + ' ' + target.text)
         if semantic:
-            reasons.append('Shared words in the confirmed posts')
-        warnings.append('Heuristic token overlap is used; no semantic embedding provider is active.')
+            reasons.append('Semantic relevance between confirmed posts' if semantic_similarity is not None else 'Shared words in the confirmed posts')
+        if semantic_similarity is None:
+            warnings.append('Heuristic token overlap is used; no semantic embedding provider is active.')
         availability = 0.0
         if all((source.starts_at, source.ends_at, target.starts_at, target.ends_at)):
             availability = 1.0
@@ -113,13 +115,22 @@ def score_pair(source: Post, target: Post):
     return {'post': target, 'score': round(100 * score, 1), 'reasons': reasons, 'warnings': warnings}
 
 
-def find_matches(db, user, post_id, limit):
+def find_matches(db, user, post_id, limit, embeddings=None):
     source = get_post(db, post_id)
     if source.user_id != user.id:
         raise APIError(403, 'FORBIDDEN', 'Only the source author can request matches.')
     if source.status != 'OPEN':
         raise APIError(400, 'INVALID_OPERATION', 'Matches require an OPEN source post.')
     candidates = db.scalars(select(Post).where(Post.category == source.category, Post.status == 'OPEN', Post.user_id != user.id)).all()
-    matches = [score_pair(source, target) for target in candidates if compatible(source, target)]
+    candidates = [target for target in candidates if compatible(source, target)]
+    prepared = EmbeddingResult()
+    if embeddings is not None and candidates and source.category != 'RIDE':
+        prepared = embeddings.prepare(db, [source, *candidates])
+    matches = []
+    for target in candidates:
+        semantic = cosine_similarity(prepared.vectors[source.id], prepared.vectors[target.id]) if prepared.mode == 'SEMANTIC' else None
+        match = score_pair(source, target, semantic)
+        match['warnings'].extend(prepared.warnings)
+        matches.append(match)
     matches.sort(key=lambda match: (-match['score'], match['post'].id))
-    return {'post_id': post_id, 'matching_mode': 'HEURISTIC', 'matches': matches[:limit]}
+    return {'post_id': post_id, 'matching_mode': prepared.mode, 'matches': matches[:limit]}
