@@ -1,17 +1,15 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Request
-from sqlalchemy import select
+from fastapi import APIRouter, Path, Query, Request, Response
 
-from . import connections, matching, posts
+from . import auth, connections, matching, posts
 from .ai.understanding import UnderstandingService
 from .dependencies import CurrentUser, DB
-from .errors import APIError
-from .models import User
 from .schemas import (
-    Category, DemoUsers, Health, PostCreate, PostList, PostResponse, PostStatus, StatusUpdate,
+    Category, Health, LoginInput, SessionResponse, PostCreate, PostList, PostResponse, PostStatus, StatusUpdate,
     ConnectionInput, ConnectionList, ConnectionResponse, ConnectionStatus, ConnectionUpdate,
     MatchInput, MatchResponse, UnderstandInput, Understanding,
+    SecurityInput, SecurityResult, DiningMenus,
 )
 
 router = APIRouter(prefix='/api')
@@ -20,14 +18,30 @@ PostId = Annotated[int, Path(ge=1)]
 
 @router.get('/health', response_model=Health)
 def health(request: Request):
-    return Health(demo_mode=request.app.state.settings.demo_mode)
+    return Health()
 
 
-@router.get('/demo/users', response_model=DemoUsers)
-def demo_users(request: Request, db: DB):
-    if not request.app.state.settings.demo_mode:
-        raise APIError(404, 'NOT_FOUND', 'Demo profiles are disabled.')
-    return {'items': db.scalars(select(User).where(User.is_demo.is_(True)).order_by(User.id)).all()}
+@router.post('/auth/login', response_model=SessionResponse)
+def login(body: LoginInput, request: Request, response: Response, db: DB):
+    return auth.login(db, request, response, body.username, body.password.get_secret_value())
+
+
+@router.get('/auth/session', response_model=SessionResponse)
+def session(request: Request, response: Response, db: DB):
+    response.headers['Cache-Control'] = 'no-store'
+    return auth.session_response(auth.authenticated(request, db))
+
+
+@router.post('/auth/logout', response_model=SessionResponse)
+def logout(request: Request, response: Response, db: DB):
+    return auth.logout(db, request, response)
+
+
+@router.get('/dining/menus', response_model=DiningMenus)
+def dining_menus(request: Request, response: Response):
+    # Public campus information; no identity, submitted URLs or database reads.
+    response.headers['Cache-Control'] = 'no-store'
+    return request.app.state.dining.today()
 
 
 @router.post('/posts', response_model=PostResponse, status_code=201)
@@ -85,3 +99,9 @@ def inbox(db: DB, user: CurrentUser, status: ConnectionStatus | None = None):
 @router.patch('/connections/{connection_id}', response_model=ConnectionResponse)
 def update_connection(connection_id: Annotated[int, Path(ge=1)], body: ConnectionUpdate, db: DB, user: CurrentUser):
     return connections.transition(db, user, connection_id, body.status)
+
+
+@router.post('/security/analyze', response_model=SecurityResult)
+def analyze_security(body: SecurityInput, request: Request, response: Response, user: CurrentUser):
+    response.headers['Cache-Control'] = 'no-store'
+    return request.app.state.security.analyze(body)

@@ -1,6 +1,6 @@
 # API contract — proposed MVP v1
 
-Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps use ISO 8601 with a UTC offset. Every protected operation uses `X-Demo-User-Id` in local DEMO_MODE; never trust body user_id. Seed identities are synthetic. Health and demo-user listing require no header.
+Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps use ISO 8601 with a UTC offset. Protected operations use a server-managed HttpOnly session cookie from student sign-in; never trust body user_id or the removed X-Demo-User-Id header. Browser requests include credentials. Mutations send X-CSRF-Token from the current session response; origins must be configured frontend origins. Health, login, session lookup and dining menus are public. Rafi and Afsana are local test accounts, not university-verified identities.
 
 ## Shared types
 - Category: RIDE | STUDY | RESTAURANT | COMMUNITY. Understanding additionally supports CYBERSECURITY.
@@ -12,8 +12,11 @@ Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps u
 ## Endpoints
 | Method / path | Request | Successful response |
 |---|---|---|
-| GET /health | none | 200 `{ "status": "ok", "demo_mode": true }` |
-| GET /demo/users | none; demo only | 200 `{ "items": [{ "id": 1, "name": "Rafi (demo)" }] }` |
+| GET /health | none | 200 `{ "status": "ok" }` |
+| POST /auth/login | `{ "username": "rafi", "password": "local password" }` | 200 Session; sets a new session cookie |
+| GET /auth/session | none | 200 Session; user and csrf_token are null when signed out |
+| POST /auth/logout | none; current CSRF token when signed in | 200 signed-out Session; revokes cookie/session |
+| GET /dining/menus | none; public, always today's UCM date | 200 dining response below, with independent hall statuses |
 | POST /understand | text, optional category_hint, reference_time, timezone | 200 preview below; no persistence |
 | POST /posts | confirmed post body below | 201 Post |
 | GET /posts | optional category, status (default OPEN), user_id; limit 1–100 (default 20), offset >=0 | 200 `{ "items": [Post], "total": 1, "limit": 20, "offset": 0 }` |
@@ -26,7 +29,22 @@ Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps u
 | PATCH /connections/{connection_id} | `{ "status": "ACCEPTED" }` | 200 Connection; recipient accepts/declines PENDING, requester cancels PENDING |
 | POST /security/analyze | `{ "text": "Your university account expires today. Click https://ucm-login-example.xyz" }` | 200 risk response below; no public post/persistence |
 
-No `/posts/{category}` route: use `/posts?category=STUDY` to avoid collision with post ids. No `/analyze` alias: use `/security/analyze` everywhere.
+No `/posts/{category}` route: use `/posts?category=STUDY` to avoid collision with post ids. No `/analyze` alias: use `/security/analyze` everywhere. `/demo/users` is removed (404).
+
+## Student sessions
+Session: `{ "user": { "id": 1, "name": "Rafi", "username": "rafi" }, "csrf_token": "opaque session CSRF token" }`. Neither passwords, password hashes nor session-cookie values appear in JSON. Login normalizes usernames and rejects invalid credentials with the same 401 envelope. Sessions expire after the configured lifetime; logout immediately revokes the current session. Client state is cleared after protected requests return 401. GET session sends Cache-Control: no-store. Login attempts are limited; excess requests return 429. Credentials for the two test accounts stay in ignored backend/.env. Existing post/connection IDs and ownership checks are preserved during migration.
+
+## UCM dining menus
+
+`GET /api/dining/menus` is read-only public information. The server selects today's date in `America/Chicago`, independently of `SEED_DATE`, device time zone and AI settings. It fetches only the fixed Todd/Ellis Sodexo feeds; callers cannot supply a URL or hall ID. It does not use the database or Gemini.
+
+```json
+{"date":"2026-10-04","timezone":"America/Chicago","fetched_at":"2026-10-04T15:00:00Z","halls":[{"id":"todd","name":"Todd Dining Center","source_url":"https://ucmo.sodexomyway.com/en-us/locations/todd-dining-center-in-todd-hall","status":"AVAILABLE","message":null,"meals":[{"name":"Brunch","stations":[{"name":"Synthetic demo station","items":["Example breakfast bowl"]}]}]},{"id":"ellis","name":"Ellis Dining Center","source_url":"https://ucmo.sodexomyway.com/en-us/locations/ellis-dining-center","status":"EMPTY","message":"Sodexo has not published a menu for this day.","meals":[]}]}
+```
+
+This example is synthetic. `halls` always contains Todd then Ellis. Each hall is `AVAILABLE` with meals, `EMPTY` when no items are published, or `UNAVAILABLE` on an upstream network/configuration/format failure. EMPTY does not mean the hall is closed. EMPTY/UNAVAILABLE have empty `meals` and a user-readable `message`; AVAILABLE has `message: null`. One failing hall does not hide the other. Feed failures return 200 with these statuses so both hall results and official links remain usable. API/transport failures follow the existing error envelope.
+
+`fetched_at` is the server's check time, not a claim of when Sodexo last changed its menu. Complete responses are cached in memory for up to five minutes, keyed by campus date. Errors are retried on the next request; expired/yesterday's listings are never substituted. Responses use `Cache-Control: no-store` so the browser requests the current server result on refresh. Only station/item names are returned; ingredients, nutrition, allergens and hours remain on the linked official site. Fixture mode uses the separate, explicitly synthetic `dining_menus` example and never contacts Sodexo.
 
 ## Understanding
 Request:
@@ -59,11 +77,11 @@ Category details:
 
 New matches use the saved fields. The embedding cache's existing content hash detects edited title/text and regenerates vectors lazily during matching. Existing connection records retain their current statuses; users should coordinate changed details with participants. Mock edits invalidate the associated scripted fixture matches rather than replaying stale scores. Browser CORS allows PUT from the configured frontend origins. Saving an edit does not require an AI provider call.
 
-Post response includes submitted fields plus id, author `{ "id": 1, "name": "Rafi (demo)" }`, status OPEN, created_at and updated_at. Return all common optional fields explicitly as null when absent. Never return secrets or embeddings.
+Post response includes submitted fields plus id, author `{ "id": 1, "name": "Rafi" }`, status OPEN, created_at and updated_at. Return all common optional fields explicitly as null when absent. Never return secrets, account hashes or embeddings.
 
 ## Match response
 ```json
-{"post_id":42,"matching_mode":"SEMANTIC","matches":[{"post":{"id":7,"author":{"id":2,"name":"Sarah (demo)"},"category":"STUDY","intent":"OFFER","title":"Relational database tutoring","text":"I can help with relational databases and SQL joins","location":"Library","starts_at":"2026-10-03T18:00:00-05:00","ends_at":"2026-10-03T19:00:00-05:00","details":{"course":"Databases","topic":"SQL joins","skill_level":"ADVANCED","mode":"IN_PERSON"},"status":"OPEN","created_at":"2026-10-03T12:00:00Z","updated_at":"2026-10-03T12:00:00Z"},"score":89.4,"reasons":["Relevant SQL tutoring offer","Overlapping availability","Same meeting location"],"warnings":[]}]}
+{"post_id":42,"matching_mode":"SEMANTIC","matches":[{"post":{"id":7,"author":{"id":2,"name":"Afsana"},"category":"STUDY","intent":"OFFER","title":"Relational database tutoring","text":"I can help with relational databases and SQL joins","location":"Library","starts_at":"2026-10-03T18:00:00-05:00","ends_at":"2026-10-03T19:00:00-05:00","details":{"course":"Databases","topic":"SQL joins","skill_level":"ADVANCED","mode":"IN_PERSON"},"status":"OPEN","created_at":"2026-10-03T12:00:00Z","updated_at":"2026-10-03T12:00:00Z"},"score":89.4,"reasons":["Relevant SQL tutoring offer","Overlapping availability","Same meeting location"],"warnings":[]}]}
 ```
 Fixture scores are illustrative mock values, not measured performance. No matches returns matches: []. Compatibility score is 0–100 with one decimal; no percentage-probability claims. No embedding/provider internals in response.
 
@@ -85,4 +103,4 @@ All errors, including validation and route failures, share:
 ```json
 {"error":{"code":"VALIDATION_ERROR","message":"Correct the highlighted fields.","details":[{"field":"details.seats","message":"Must be at least 1"}]}}
 ```
-400 invalid operation, 401 missing/unknown demo identity, 403 wrong owner/participant, 404 missing resource or demo-only endpoint disabled, 409 duplicate/conflicting state, 422 validation, 503 provider unavailable when fallback is disabled. Hide stack traces and provider secrets. Install exception handlers so FastAPI validation errors use this envelope.
+400 invalid operation, 401 missing/expired session or incorrect login, 403 wrong owner/participant, untrusted request origin or missing/invalid CSRF token, 404 missing resource, 409 duplicate/conflicting state, 422 validation, 429 too many sign-in attempts, 503 provider unavailable when fallback is disabled. Hide stack traces, submitted passwords and provider secrets. Install exception handlers so FastAPI validation errors use this envelope.

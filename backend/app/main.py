@@ -5,12 +5,15 @@ from fastapi import FastAPI
 from .config import Settings
 from .ai.embeddings import EmbeddingService
 from .cors import APICORSMiddleware
-from .database import Base, make_engine, session_factory
+from .database import make_engine, session_factory
+from .dining import DiningService
 from .errors import install_handlers
 from .routes import router
+from .accounts import LoginThrottle, prepare_database, provision_accounts
+from .security.service import SecurityService
 
 
-def create_app(settings: Settings | None = None, *, embedding_provider=None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, embedding_provider=None, security_provider=None, dining_provider=None) -> FastAPI:
     settings = settings or Settings()
 
     @asynccontextmanager
@@ -19,7 +22,9 @@ def create_app(settings: Settings | None = None, *, embedding_provider=None) -> 
         app.state.engine = engine
         app.state.session_factory = session_factory(engine)
         try:
-            Base.metadata.create_all(engine)
+            prepare_database(engine)
+            with app.state.session_factory.begin() as db:
+                provision_accounts(db, settings)
             yield
         finally:
             engine.dispose()
@@ -27,11 +32,15 @@ def create_app(settings: Settings | None = None, *, embedding_provider=None) -> 
     app = FastAPI(title='ConnectHub', version='0.1.0', lifespan=lifespan)
     app.state.settings = settings
     app.state.embeddings = EmbeddingService(settings, embedding_provider)
+    app.state.login_throttle = LoginThrottle()
+    app.state.security = SecurityService(settings, security_provider)
+    app.state.dining = DiningService(dining_provider)
     app.add_middleware(
         APICORSMiddleware,
         allow_origins=settings.allowed_origins,
         allow_methods=['GET', 'POST', 'PUT', 'PATCH'],
-        allow_headers=['Content-Type', 'X-Demo-User-Id'],
+        allow_headers=['Content-Type', 'X-CSRF-Token'],
+        allow_credentials=True,
     )
     install_handlers(app)
     app.include_router(router)

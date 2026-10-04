@@ -1,20 +1,18 @@
-# Add ConnectHub frontend and fixture-backed workflows
+# Add student sign-in/logout and replace demo identity
 
-ConnectHub previously contained only planning documents and synthetic response fixtures. This change adds a runnable React/Vite/Tailwind frontend so Person 1 can develop and demonstrate the shared workflows while Person 2 builds the API.
+Students previously selected a demo profile, and the backend trusted a demo identity header. The app now opens `/login` before protected pages, signs in as Rafi or Afsana with private local passwords, restores active sessions on reload, and shows the student name plus Log out in the header. Logging out revokes the server session and returns to sign-in; expired sessions also require a new login.
 
-The dashboard provides five category shortcuts, a demo profile selector, natural-language preview/correction, shared post/match cards and forms, Ride/Food/Community boards, post completion, and a connection inbox. The fixture SQL request can send a connection to the tutoring offer; switching from Rafi to Sarah lets the recipient accept or decline. Mock response controls demonstrate loading, empty and error behavior. Accepted requests express interest without reserving capacity or completing posts.
+The user authorized backend authentication for this frontend task. The API contract now defines login/session/logout and credentialed cookie requests with CSRF protection. The live adapter, fixture adapter and consumers use the same methods. Backend passwords are salted hashes, session tokens are random and stored hashed, and login attempts are throttled. The demo selector, listing endpoint, accepted identity header, demo settings and legacy demo flag are removed. Existing post and connection records are preserved during migration; only Rafi and Afsana are provisioned as login accounts. Passwords, database files and the migration backup remain local and ignored.
 
-One typed API interface backs both the fixture mock and the live HTTP adapter, following the existing API contract. No API interfaces, fixtures or backend files changed. The mock is an in-memory demo: dates and scores are illustrative, new posts have no canned matches, and previews ask for missing facts instead of inferring relative times. The browser contains no matching engine or AI provider calls.
-
-Person 2 owns `frontend/src/pages/StudyPage.tsx` (`/study`) and `frontend/src/pages/SecurityPage.tsx` (`/security`). These are reserved placeholders using shared infrastructure; the private analyzer still needs implementation. Security-classified previews route privately without publishing the text.
+Study and Security retain the agreed Person 2 page paths and shared API/components. Remote main's private Security analyzer and daily dining menus are integrated with student sessions; the old demo identity API is not restored. University SSO, self-registration and password recovery remain outside the local prototype. Setup and test-account instructions are in README.md.
 
 Validation:
 
-- `cd frontend && npm run check`: TypeScript and 19 passing behavior tests.
+- `python -m pytest backend/tests -q`: 309 passing tests, including authentication, cookie/CSRF handling, logout replay rejection and legacy-data migration.
+- `cd frontend && npm run check -- --maxWorkers=2`: TypeScript and 77 passing tests.
 - `cd frontend && npm run build`: production build passed.
-- Headless Chrome dashboard checks at 1440px and 390px widths.
+- Live Chrome: both student accounts, incorrect password, session reload, HttpOnly cookies, revoked logout cookies, edit ownership, same-route 10 PM matching at 100/100, and Rafi request → Afsana acceptance.
+- Desktop/mobile login screenshots reviewed; synthetic browser-test posts cancelled, existing posts unchanged.
 - `git diff --check`: clean.
 
-For live integration, set `VITE_USE_MOCKS=false` and `VITE_API_BASE_URL=http://localhost:8000/api` in `frontend/.env.local`, restart Vite, and run the contracted backend with seeded identities and CORS allowing the frontend origin and demo identity header. Live backend integration and the dedicated Study/Security workflows remain pending.
-
-The implementation stays on the user's existing `feat/frontend` branch. GitHub authentication was unavailable for fetching main or publishing a PR. This file is the prepared PR description; no merge was performed.
+Changes remain on the existing `feat/frontend` branch. This is a prepared PR description; no merge is performed.

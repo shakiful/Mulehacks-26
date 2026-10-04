@@ -7,7 +7,7 @@ Based on the attached ConnectHub plan, preserved in SOURCE_PLAN.md. This handoff
 Students have needs and useful skills but struggle to discover compatible people. ConnectHub connects students through one shared post and matching system, while connecting suspicious-message recipients to protective guidance.
 
 ## MVP journey
-1. Choose a labeled demo profile.
+1. Sign in with a student account; Rafi and Afsana are the two local test accounts. Log out to end a session or test as the other account.
 2. Describe a need or use a category form.
 3. Preview extracted category, intent, details and missing fields.
 4. Correct or confirm the preview; create a post for RIDE, STUDY, RESTAURANT or COMMUNITY.
@@ -31,7 +31,7 @@ Home has a natural-language input and five category shortcuts. Shared cards show
 Study/Security pages are Person 2's feature responsibility; Person 1 supplies shared layout and components. Decide page filenames before either person edits shared frontend files.
 
 ## Scope boundaries
-Demo identity replaces authentication for the MVP; it is only suitable for a local prototype. Defer password login, university SSO, trust scoring, payments, live GPS, messaging, booking, restaurant ordering, mobile apps and vector database infrastructure. Maps are optional; text locations are sufficient. Do not display unverifiable trust badges.
+The October 4 user request adds local username/password sign-in and logout, replacing the original demo identity decision. Provision only Rafi and Afsana for testing; passwords belong in ignored backend/.env files, and sessions determine ownership. No profile selector or demo-user API remains. Existing records are preserved during migration. University SSO, registration/password recovery, trust scoring, payments, live GPS, messaging, booking, restaurant ordering, mobile apps and vector database infrastructure remain deferred. Maps are optional; text locations are sufficient. Do not display unverifiable trust badges or claim university-verified accounts.
 
 ## AI responsibilities
 - Classify into five categories; manual category overrides win.

@@ -1,7 +1,7 @@
 # Add this package to your existing repository
 
 ## Existing files first
-Extract the ZIP outside your repository. The `ConnectHub-Handoff` directory contains files intended for your repository root. Copy its **contents**, rather than nesting the folder itself. If README.md, AGENTS.md, .gitignore, .env.example or docs already exist, merge the relevant sections instead of replacing them. The package includes planning documents and sample responses; it does not contain implemented app code.
+Extract the ZIP outside your repository. The `ConnectHub-Handoff` directory contains files intended for your repository root. Copy its **contents**, rather than nesting the folder itself. If README.md, AGENTS.md, .gitignore, .env.example or docs already exist, merge the relevant sections instead of replacing them. The original handoff package contained planning documents and sample responses. The current repository includes the React frontend, FastAPI backend and student login; use README.md for application setup.
 
 ## Easiest route: GitHub website
 1. Open your existing repository, and select its default branch (often main).
@@ -79,3 +79,9 @@ Resolve conflicts together in shared contracts/components, run relevant checks, 
 Each local SQLite database is independent. Both run the same seed script, but changes to records on one laptop will not appear on the other. Use one laptop for the final integrated demo unless a shared backend is deliberately configured. localhost on Person 1's laptop never refers to Person 2's laptop.
 
 Each laptop uses its own local .env files. Keep provider keys on backend only. The .gitignore template does not untrack secrets already committed; inspect tracked files before publishing changes. Do not upload real private data for seed examples.
+
+## Student accounts on each laptop
+
+Create or preserve `backend/.env`, then set private passwords of at least 10 characters in `RAFI_LOGIN_PASSWORD` and `AFSANA_LOGIN_PASSWORD`. Run `python -m backend.app.seed` with the backend virtual environment before starting the services. Sign in at http://localhost:5173/login as `rafi` or `afsana`. Click Log out before testing the other account; there is no demo identity selector. Each laptop has its own account hashes and data. After intentionally changing a password setting, use `python -m backend.app.seed --reset-passwords` to apply it.
+
+Keep frontend and backend on the same hostname, such as localhost:5173 and localhost:8000. The shared API client includes session cookies and CSRF headers; the backend CORS configuration must allow the frontend origin and credentials. For an HTTPS deployment set SESSION_COOKIE_SECURE=true. Registration and university SSO remain outside the local prototype.

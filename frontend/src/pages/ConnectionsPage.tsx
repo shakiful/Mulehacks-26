@@ -11,11 +11,11 @@ export function ConnectionsPage() {
   const [pending, setPending] = useState<number | null>(null);
   const [error, setError] = useState<unknown>(null);
   const resource = useResource(async () => {
-    const [connections, profiles] = await Promise.all([
-      api.listConnections(filter ? (filter as ConnectionStatus) : undefined),
-      api.listDemoUsers(),
-    ]);
-    return { connections: connections.items, profiles: profiles.items };
+    const result = await api.listConnections(filter ? (filter as ConnectionStatus) : undefined);
+    const ids = [...new Set(result.items.map((connection) =>
+      connection.receiver_id === userId ? connection.source_post_id : connection.target_post_id))];
+    const posts = await Promise.all(ids.map((id) => api.getPost(id)));
+    return { connections: result.items, posts };
   }, [api, userId, filter, scenario]);
   async function transition(
     id: number,
@@ -74,18 +74,14 @@ export function ConnectionsPage() {
       ) : !resource.data?.connections.length ? (
         <EmptyState
           title="Your next hello is waiting."
-          description="Request a connection from a match. Incoming requests appear here for the receiving demo profile."
+          description="Request a connection from a match. Incoming requests appear here for the recipient when they sign in."
         />
       ) : (
         <div className="space-y-4">
           {resource.data.connections.map((connection) => {
             const incoming = connection.receiver_id === userId;
-            const otherId = incoming
-              ? connection.requester_id
-              : connection.receiver_id;
-            const name =
-              resource.data!.profiles.find((profile) => profile.id === otherId)
-                ?.name ?? `Demo profile #${otherId}`;
+            const otherPost = incoming ? connection.source_post_id : connection.target_post_id;
+            const name = resource.data!.posts.find((post) => post.id === otherPost)?.author.name ?? "Student";
             return (
               <article
                 key={connection.id}

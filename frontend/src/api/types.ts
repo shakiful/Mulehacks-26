@@ -17,9 +17,16 @@ export type CommunitySubcategory =
   | "SHOPPING"
   | "NEW_STUDENT"
   | "OTHER";
-export interface DemoUser {
+export interface UserSummary {
   id: number;
   name: string;
+}
+export interface StudentUser extends UserSummary {
+  username: string;
+}
+export interface StudentSession {
+  user: StudentUser | null;
+  csrf_token: string | null;
 }
 export interface RideDetails {
   origin: string;
@@ -69,7 +76,7 @@ export type CreatePostInput = CommonPostInput &
   );
 export type Post = CreatePostInput & {
   id: number;
-  author: DemoUser;
+  author: UserSummary;
   status: PostStatus;
   created_at: string;
   updated_at: string;
@@ -137,9 +144,25 @@ export interface FieldError {
 export interface ErrorEnvelope {
   error: { code: string; message: string; details: FieldError[] };
 }
+export interface DiningMenuResponse {
+  date: string;
+  timezone: "America/Chicago";
+  fetched_at: string;
+  halls: {
+    id: "todd" | "ellis";
+    name: string;
+    source_url: string;
+    status: "AVAILABLE" | "EMPTY" | "UNAVAILABLE";
+    message: string | null;
+    meals: { name: string; stations: { name: string; items: string[] }[] }[];
+  }[];
+}
 export interface ApiClient {
-  health(): Promise<{ status: "ok"; demo_mode: boolean }>;
-  listDemoUsers(): Promise<{ items: DemoUser[] }>;
+  health(): Promise<{ status: "ok" }>;
+  login(username: string, password: string): Promise<StudentSession>;
+  getSession(): Promise<StudentSession>;
+  logout(): Promise<StudentSession>;
+  getDiningMenus(): Promise<DiningMenuResponse>;
   understand(input: UnderstandInput): Promise<Understanding>;
   createPost(input: CreatePostInput): Promise<Post>;
   listPosts(query?: PostQuery): Promise<PostList>;

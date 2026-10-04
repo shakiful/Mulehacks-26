@@ -1,26 +1,13 @@
 {
   "note": "Synthetic mock responses. Fixed dates and scores are illustrative, not live results.",
   "health": {
-    "status": "ok",
-    "demo_mode": true
-  },
-  "demo_users": {
-    "items": [
-      {
-        "id": 1,
-        "name": "Rafi (demo)"
-      },
-      {
-        "id": 2,
-        "name": "Sarah (demo)"
-      }
-    ]
+    "status": "ok"
   },
   "post_created": {
     "id": 42,
     "author": {
       "id": 1,
-      "name": "Rafi (demo)"
+      "name": "Rafi"
     },
     "category": "STUDY",
     "intent": "REQUEST",
@@ -45,7 +32,7 @@
         "id": 42,
         "author": {
           "id": 1,
-          "name": "Rafi (demo)"
+          "name": "Rafi"
         },
         "category": "STUDY",
         "intent": "REQUEST",
@@ -68,7 +55,7 @@
         "id": 7,
         "author": {
           "id": 2,
-          "name": "Sarah (demo)"
+          "name": "Afsana"
         },
         "category": "STUDY",
         "intent": "OFFER",
@@ -101,7 +88,7 @@
           "id": 7,
           "author": {
             "id": 2,
-            "name": "Sarah (demo)"
+            "name": "Afsana"
           },
           "category": "STUDY",
           "intent": "OFFER",
@@ -194,7 +181,7 @@
       "id": 42,
       "author": {
         "id": 1,
-        "name": "Rafi (demo)"
+        "name": "Rafi"
       },
       "category": "STUDY",
       "intent": "REQUEST",
@@ -213,5 +200,77 @@
       "created_at": "2026-10-03T12:00:00Z",
       "updated_at": "2026-10-04T00:00:00Z"
     }
+  },
+  "test_accounts": [
+    {
+      "id": 1,
+      "name": "Rafi",
+      "username": "rafi"
+    },
+    {
+      "id": 2,
+      "name": "Afsana",
+      "username": "afsana"
+    }
+  ],
+  "signed_in_session": {
+    "user": {
+      "id": 1,
+      "name": "Rafi",
+      "username": "rafi"
+    },
+    "csrf_token": "synthetic-fixture-csrf-token"
+  },
+  "signed_out_session": {
+    "user": null,
+    "csrf_token": null
+  },
+  "dining_menus": {
+    "date": "2026-10-04",
+    "timezone": "America/Chicago",
+    "fetched_at": "2026-10-04T15:00:00Z",
+    "halls": [
+      {
+        "id": "todd",
+        "name": "Todd Dining Center",
+        "source_url": "https://ucmo.sodexomyway.com/en-us/locations/todd-dining-center-in-todd-hall",
+        "status": "AVAILABLE",
+        "message": null,
+        "meals": [
+          {
+            "name": "Brunch",
+            "stations": [
+              {
+                "name": "Synthetic demo station",
+                "items": [
+                  "Example breakfast bowl",
+                  "Example fruit cup"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ellis",
+        "name": "Ellis Dining Center",
+        "source_url": "https://ucmo.sodexomyway.com/en-us/locations/ellis-dining-center",
+        "status": "AVAILABLE",
+        "message": null,
+        "meals": [
+          {
+            "name": "Dinner",
+            "stations": [
+              {
+                "name": "Synthetic demo station",
+                "items": [
+                  "Example vegetable pasta"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

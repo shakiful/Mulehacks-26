@@ -5,7 +5,8 @@ import type {
   ApiClient,
   Category,
   Connection,
-  DemoUser,
+  StudentUser,
+  DiningMenuResponse,
   MatchResponse,
   Post,
   SecurityResult,
@@ -14,35 +15,36 @@ import type {
 
 export type MockScenario = "normal" | "empty" | "error";
 interface MockOptions {
-  getDemoUserId: () => number | null;
+  initialUser?: StudentUser | null;
   delayMs?: number;
   getScenario?: () => MockScenario;
 }
 const clone = <T>(value: T): T => structuredClone(value);
 
 export function createMockApi({
-  getDemoUserId,
+  initialUser = null,
   delayMs = 300,
   getScenario = () => "normal",
-}: MockOptions): ApiClient {
-  const users: DemoUser[] = clone(fixtureData.demo_users.items);
+}: MockOptions = {}): ApiClient {
+  const users: StudentUser[] = clone(fixtureData.test_accounts);
+  let currentUser = initialUser && users.find((user) => user.id === initialUser.id) || null;
   const posts = clone(fixtureData.post_list.items) as Post[];
   const connections: Connection[] = [];
   const editedPostIds = new Set<number>();
   let nextPostId = Math.max(...posts.map((post) => post.id)) + 1;
   let nextConnectionId = fixtureData.connection.id;
 
-  async function ready(protectedOperation = true): Promise<DemoUser | null> {
-    // Capture identity before the delay so profile changes cannot change a pending operation's owner.
-    const user = users.find((item) => item.id === getDemoUserId()) ?? null;
+  async function ready(protectedOperation = true): Promise<StudentUser | null> {
+    // Capture the signed-in account before the delay; pending operations keep their owner.
+    const user = currentUser;
     await new Promise((resolve) => setTimeout(resolve, delayMs));
     if (protectedOperation && !user)
-      fail(401, "DEMO_IDENTITY_REQUIRED", "Choose a known demo profile.");
+      fail(401, "UNAUTHORIZED", "Sign in to continue.");
     if (protectedOperation && getScenario() === "error")
       fail(
         503,
         "MOCK_UNAVAILABLE",
-        "Demo error: the service is temporarily unavailable. Switch demo responses to Normal and retry.",
+        "The fixture service is temporarily unavailable. Switch response states to Normal and retry.",
       );
     return user;
   }
@@ -88,11 +90,37 @@ export function createMockApi({
   return {
     health: async () => {
       await ready(false);
-      return clone(fixtureData.health) as { status: "ok"; demo_mode: boolean };
+      return { status: "ok" };
     },
-    listDemoUsers: async () => {
+    login: async (username, password) => {
       await ready(false);
-      return { items: clone(users) };
+      const user = users.find((item) => item.username === username.trim().toLowerCase());
+      if (!user || password !== "fixture-only") fail(401, "INVALID_CREDENTIALS", "The username or password is incorrect.");
+      currentUser = user;
+      return { user: clone(user), csrf_token: "synthetic-fixture-csrf-token" };
+    },
+    getSession: async () => {
+      await ready(false);
+      return { user: currentUser ? clone(currentUser) : null, csrf_token: currentUser ? "synthetic-fixture-csrf-token" : null };
+    },
+    logout: async () => {
+      await ready(false);
+      currentUser = null;
+      return { user: null, csrf_token: null };
+    },
+    getDiningMenus: async () => {
+      await ready(false);
+      if (getScenario() === "error")
+        fail(503, "MOCK_UNAVAILABLE", "Demo error: dining menus could not be loaded.");
+      const result = clone(fixtureData.dining_menus) as DiningMenuResponse;
+      if (getScenario() === "empty") {
+        result.halls.forEach((hall) => {
+          hall.status = "EMPTY";
+          hall.message = "Synthetic empty menu example.";
+          hall.meals = [];
+        });
+      }
+      return result;
     },
     understand: async (input) => {
       await ready();
@@ -181,7 +209,7 @@ export function createMockApi({
         starts_at: input.starts_at ?? null,
         ends_at: input.ends_at ?? null,
         id: nextPostId++,
-        author: clone(user),
+        author: { id: user.id, name: user.name },
         status: "OPEN" as const,
         created_at: now,
         updated_at: now,

@@ -6,13 +6,15 @@ from fastapi.testclient import TestClient
 from backend.app.config import Settings
 from backend.app.main import create_app
 from backend.app.seed import seed
+from backend.tests.auth_helpers import auth_headers
 
 
 @pytest.fixture
 def settings(tmp_path):
     return Settings(
         _env_file=None, database_url='sqlite:///' + (tmp_path / 'test.db').as_posix(),
-        demo_mode=True, demo_date=date(2026, 10, 3), demo_timezone='America/Chicago',
+        seed_date=date(2026, 10, 3), seed_timezone='America/Chicago',
+        rafi_login_password='synthetic-fixture-password', afsana_login_password='synthetic-fixture-password',
         cors_origins='http://localhost:5173',
         openai_api_key='',
         gemini_api_key='',
@@ -28,8 +30,8 @@ def client(settings):
 
 
 @pytest.fixture
-def headers():
-    return {'X-Demo-User-Id': '1'}
+def headers(client):
+    return auth_headers(client)
 
 
 @pytest.fixture
