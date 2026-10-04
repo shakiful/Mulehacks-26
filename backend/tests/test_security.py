@@ -84,8 +84,13 @@ def test_route_shape_auth_no_persistence_no_logging_or_link_visits(client, heade
     assert not any(statement.lstrip().upper().startswith(('INSERT', 'UPDATE', 'DELETE', 'REPLACE')) for statement in statements)
     assert client.get('/api/posts', headers=headers).json()['total'] == before
     with client.app.state.engine.connect() as connection:
-        tables = connection.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'").scalars().all()
-    assert set(tables) == {'users', 'student_accounts', 'auth_sessions', 'posts', 'connections', 'post_embeddings', 'ride_reservations'}
+        tables = connection.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").scalars().all()
+    assert set(tables) == {'users', 'student_accounts', 'auth_sessions', 'posts', 'connections', 'post_embeddings', 'ride_reservations', 'post_joins', 'messages', 'notifications'}
+    # Security assessment still persists nothing, including in the new chat tables.
+    with client.app.state.engine.connect() as connection:
+        assert connection.exec_driver_sql('SELECT count(*) FROM messages').scalar_one() == 0
+        assert connection.exec_driver_sql('SELECT count(*) FROM post_joins').scalar_one() == 0
+        assert connection.exec_driver_sql('SELECT count(*) FROM notifications').scalar_one() == 0
     assert client.post('/api/security/analyze', json={'text': SUSPICIOUS}).status_code == 401
     assert client.post('/api/security/analyze', headers={'X-Demo-User-Id': '999'}, json={'text': SUSPICIOUS}).status_code == 401
     assert client.post('/api/analyze', headers=headers, json={'text': SUSPICIOUS}).status_code == 404

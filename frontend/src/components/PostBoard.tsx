@@ -5,6 +5,7 @@ import type { Category } from "../api/types";
 import { useApi } from "../context/ApiContext";
 import { useResource } from "../hooks/useResource";
 import { PostCard } from "./PostCard";
+import { JoinPost } from "./JoinPost";
 import { EmptyState, ErrorState, LoadingState } from "./States";
 
 export function PostBoard({
@@ -20,14 +21,21 @@ export function PostBoard({
   const [offset, setOffset] = useState(0);
   const [actionError, setActionError] = useState<unknown>(null);
   const [pendingId, setPendingId] = useState<number | null>(null);
+  const [notice, setNotice] = useState("");
   const resource = useResource(
-    () =>
-      api.listPosts({
+    async () => {
+      const [posts, joins, connections] = await Promise.all([api.listPosts({
         category,
         limit,
         offset,
         ...(ownOnly && userId !== null ? { user_id: userId } : {}),
-      }),
+      }), api.listJoins(), api.listConnections()]);
+      const ids = [...new Set(connections.items.filter((c) => c.status === "ACCEPTED")
+        .map((c) => c.requester_id === userId ? c.target_post_id : c.source_post_id))];
+      const otherPosts = await Promise.all(ids.map((id) => api.getPost(id)));
+      return { ...posts, joins: joins.items, connections: connections.items,
+        names: new Map(otherPosts.map((p) => [p.author.id, p.author.name])) };
+    },
     [api, userId, category, limit, offset, ownOnly, scenario],
   );
   async function complete(id: number) {
@@ -42,11 +50,12 @@ export function PostBoard({
       setPendingId(null);
     }
   }
-  if (resource.loading) return <LoadingState />;
+  if (resource.loading) return <>{notice && <p role="status" className="notice mb-4">{notice}</p>}<LoadingState /></>;
   if (resource.error)
     return <ErrorState error={resource.error} retry={resource.reload} />;
   return (
     <>
+      {notice && <p role="status" className="notice mb-4">{notice}</p>}
       {actionError !== null && (
         <div className="mb-4">
           <ErrorState error={actionError} />
@@ -58,6 +67,11 @@ export function PostBoard({
         <div className="grid gap-5 lg:grid-cols-2">
           {resource.data.items.map((post) => (
             <PostCard key={post.id} post={post}>
+              <JoinPost post={post}
+                join={resource.data!.joins.find((j) => j.post.id === post.id && j.requester.id === userId && ["PENDING", "ACCEPTED"].includes(j.status))}
+                connection={resource.data!.connections.filter((c) => [c.source_post_id, c.target_post_id].includes(post.id) && ["PENDING", "ACCEPTED"].includes(c.status))
+                  .sort((a, b) => Number(b.status === "ACCEPTED") - Number(a.status === "ACCEPTED"))[0]}
+                onJoined={() => { setNotice("Join request sent. The author can accept it in Connections; then you can both message."); resource.reload(); }} />
               {post.author.id === userId && post.status === "OPEN" && (
                 <>
                   <Link className="button-secondary" to={`/posts/${post.id}/edit`}>
@@ -79,6 +93,10 @@ export function PostBoard({
                   </button>
                 </>
               )}
+              {post.author.id === userId && resource.data!.joins.filter((j) => j.post.id === post.id && j.status === "ACCEPTED").map((j) =>
+                <Link key={`join-${j.id}`} className="button-secondary" to={`/messages/join/${j.id}`}>Message {j.requester.name}</Link>)}
+              {post.author.id === userId && resource.data!.connections.filter((c) => [c.source_post_id, c.target_post_id].includes(post.id) && c.status === "ACCEPTED").map((c) =>
+                <Link key={`connection-${c.id}`} className="button-secondary" to={`/messages/connection/${c.id}`}>Message {resource.data!.names.get(c.requester_id === userId ? c.receiver_id : c.requester_id) ?? "student"}</Link>)}
             </PostCard>
           ))}
         </div>

@@ -14,6 +14,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useApi } from "../context/ApiContext";
 import type { MockScenario } from "../api/mock";
 import { ErrorState } from "./States";
+import { NotificationBell } from "./NotificationBell";
 
 const navigation = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -122,6 +123,7 @@ export function Layout() {
             Campus commons <span>/</span> MuleCampusBuddy
           </span>
           <div className="profile-selector">
+            <NotificationBell key={`${userId}:${scenario}`} />
             <span className="avatar">{user?.name.charAt(0) ?? "?"}</span>
             <div className="account-name"><span>Signed in as</span><strong>{user?.name}</strong></div>
             <button className="button-secondary logout-button" disabled={loggingOut} onClick={logout}>

@@ -26,7 +26,18 @@ Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps u
 | POST /matches | `{ "post_id": 42, "limit": 5 }`; limit 1–20 | 200 ranked matches below; source author only |
 | POST /connections | `{ "source_post_id": 42, "target_post_id": 7 }` | 201 Connection; source author only |
 | GET /connections | optional status | 200 `{ "items": [Connection] }`; participant records only |
+| GET /connections/{connection_id} | none | 200 Connection; participants only |
 | PATCH /connections/{connection_id} | `{ "status": "ACCEPTED" }` | 200 Connection; recipient accepts/declines PENDING, requester cancels PENDING |
+| POST /posts/{post_id}/join | `{}`; Ride OFFER requires `{ "seats": 1 }` | 201 Join; no counterpart post required |
+| GET /joins | optional status | 200 `{ "items": [Join] }`; participant records only |
+| GET /joins/{join_id} | none | 200 Join; participants only |
+| PATCH /joins/{join_id} | `{ "status": "ACCEPTED" }` | 200 Join; author accepts/declines PENDING, requester cancels PENDING |
+| GET /connections/{id}/messages or /joins/{id}/messages | limit, optionally before_id or after_id | 200 `{ "items": [Message], "has_more": false }`; accepted participants only |
+| POST /connections/{id}/messages or /joins/{id}/messages | `{ "text": "Hello!" }` | 201 Message; accepted participants only, sender from session |
+| GET /notifications | limit, unread_only, optional before_id or after_id | 200 notification page and current student's unread_count |
+| PATCH /notifications/{id} | `{ "read": true }` | 200 Notification; recipient only, idempotent |
+| POST /notifications/read | `{ "through_id": 10 }` | 200 `{ "unread_count": 0 }`; marks own notifications through this ID |
+| POST /notifications/read-thread | kind, thread_id, optional through_message_id | 200 `{ "unread_count": 0 }`; accepted participants only, acknowledges displayed messages |
 | POST /security/analyze | `{ "text": "Your university account expires today. Click https://ucm-login-example.xyz" }` | 200 risk response below; no public post/persistence |
 
 No `/posts/{category}` route: use `/posts?category=STUDY` to avoid collision with post ids. No `/analyze` alias: use `/security/analyze` everywhere. `/demo/users` is removed (404).
@@ -105,6 +116,41 @@ Validate both posts OPEN, same category, different authors and matching hard con
 For Ride only, accepting PENDING atomically rechecks open state, map/time gates, remaining capacity and whether the request is already booked. It creates one persisted seat reservation, completes the passenger REQUEST, and leaves the OFFER OPEN until remaining seats reach zero; then the offer becomes COMPLETED. This applies whether the driver or passenger initiated the connection. A 4-seat offer can accept 1 + 1 + 2 seats from separate requests. Pending/declined/cancelled requests hold no seats. Stale/full/closed/already-booked acceptances return 409 CONFLICT; no partial reservation is saved. Authors can mark offers COMPLETED early with the existing post PATCH (the UI calls this Mark filled), stopping new matches and acceptances regardless of spare capacity.
 
 Accepted connections remain terminal; seat release/reopening and booking cancellation are outside this prototype's current lifecycle. This is local demo capacity tracking, not a transport guarantee. Other categories still record interest only, never orders/payments/capacity. An additive startup migration counts older accepted Ride connections once per request, choosing the earliest if historical duplicates exist, without changing their posts or connection records.
+
+## Direct post joins and private messages
+
+This additive workflow lets a signed-in student join an existing OPEN Ride, Study, Food (`RESTAURANT`) or Community post without creating a counterpart post or running matching. It does not assign a compatibility score. Existing `/connections` matching routes and their response shapes are preserved.
+
+- `POST /posts/{post_id}/join` → 201 Join. Body `{}` for non-Ride and Ride REQUEST posts; Ride OFFER requires `{"seats":1}` (strict positive integer). Joining a Ride REQUEST explicitly means offering to drive; the UI explains this before confirmation. Derive requester and receiver from the session and post author. Reject self-joins with 403, closed/full posts and duplicate active joins with 409. Do not create a post or infer routes, dates or availability.
+- `GET /joins?status=PENDING` → `{"items":[Join]}`; status is optional and uses the Connection statuses. Only the current student's incoming/outgoing joins are visible, newest first.
+- `GET /joins/{id}` → Join; participants only (403 for others, 404 if absent).
+- `PATCH /joins/{id}` body `{"status":"ACCEPTED"}` / `DECLINED` (recipient only), or `CANCELLED` (requester only). Only PENDING transitions; terminal changes return 409. Acceptance rechecks the target OPEN status and original category/intent. Decline/cancel remain possible after target closure.
+- `GET /connections/{id}` → the existing Connection shape, participants only.
+
+Join shape: `id`, `post` (current Post response), `requester` and `receiver` (public `{id,name}`), `category` and `post_intent` (snapshots), `status`, `requested_seats` (Ride OFFER request; otherwise 0), `reserved_seats` (immutable accepted Ride seat count; otherwise 0), `created_at`, `updated_at` (UTC). A unique active `(post_id, requester_id)` prevents duplicate PENDING/ACCEPTED joins in either concurrent request. Declined/cancelled requests can be retried.
+
+Ride OFFER acceptance atomically reserves requested seats alongside existing matched Ride reservations, completing the offer only when full. Ride REQUEST acceptance completes that passenger request and records its seat count; it does not invent a driver offer. A SQLite write lock serializes join acceptance, matched acceptance and Ride edits. A pending join is not a reservation. Accepted joins are terminal; release/reopening remains deferred. Accepted direct seats contribute to `ride_availability` and existing reserved-route/capacity edit guards. Other categories do not reserve capacity or place orders.
+
+- `GET /connections/{id}/messages` and `GET /joins/{id}/messages` → `{"items":[Message],"has_more":false}`. Only participants in an ACCEPTED thread may read or send (403 for outsiders, 409 before acceptance).
+- `POST` to either messages route with `{"text":"Hello, shall we meet at the library?"}` → 201 Message. Trim whitespace and require 1–2000 characters. Sender is session-derived; additional fields are rejected. Render messages as plain text. No AI/provider processing or submitted-link fetching.
+- Message: `id`, `connection_id` (integer or null), `join_id` (integer or null; exactly one parent), `sender` (public `{id,name}`), `text`, `created_at` (UTC).
+- Message GET accepts `limit` (1–100, default 50), optionally either `before_id` or `after_id` (positive integers, mutually exclusive). Initial/before queries return the latest page, ascending by ID; after queries return the earliest new page ascending. `has_more` indicates more results in the queried direction. Cursor IDs never bypass thread or participant filtering. All private thread/message responses use `Cache-Control: no-store`.
+
+Private messages persist in the local ignored SQLite database. Frontend polling retrieves new messages; unmount/account changes clear private drafts and ignore stale responses. No websocket, delivery/read receipt, group chat, university verification or remote messaging service is implied. The explicit mock adapter follows these routes and permissions in memory, using synthetic fixture examples; refreshing mock mode clears created joins/messages.
+
+## In-app notifications
+
+Notifications are additive and private to their recipient. Persist a notification in the same transaction as each new message, join request, or matched connection request, and when a request is accepted. A sender never receives their own activity notification. Failed/duplicate/forbidden events create no notifications; startup does not fabricate alerts for historical activity. No email, OS/browser push permission, external service or AI provider is involved.
+
+Notification: `id`, `kind` (`NEW_MESSAGE`, `JOIN_REQUEST`, `JOIN_ACCEPTED`, `CONNECTION_REQUEST`, `CONNECTION_ACCEPTED`), `actor` (public `{id,name}`), `post_title` (title snapshot), `join_id` / `connection_id` (exactly one non-null parent), `message_id` (NEW_MESSAGE only), `created_at` and nullable `read_at` (UTC). Do not include private message text or credentials in notification previews. One notification per message; request/acceptance events are unique per recipient/parent/kind. New joins notify the author that a student **requested to join**; acceptance notifies that student that messaging is available.
+
+`GET /notifications` defaults to `limit=20` (1–100) and `unread_only=false`. Optional `before_id` (>=1) or `after_id` (>=0) are mutually exclusive. Initial/before pages are newest first; after pages are oldest first to drain new events without skipping them. Return `{items:[Notification],unread_count:integer,has_more:boolean}`. Unread count covers all of the recipient's unread notifications, independent of pagination and filters. Cursor filtering never bypasses recipient filtering. Successful responses use `Cache-Control: no-store`.
+
+`PATCH /notifications/{id}` accepts only strict boolean `read:true`; the recipient may mark it read repeatedly without changing the original read timestamp (403 for any other student, 404 if absent). `POST /notifications/read` takes a strict positive `through_id` watermark and marks only the current student's records with IDs at or below it. Notifications arriving above that watermark remain unread.
+
+`POST /notifications/read-thread` takes `{kind:"join"|"connection",thread_id:positiveInteger,through_message_id?:positiveInteger}`. Require ACCEPTED participant access, scope updates to that recipient and thread, and acknowledge NEW_MESSAGE events only at or below the last displayed message ID; omitting it acknowledges no messages. Acceptance notifications for the opened thread can be acknowledged too. Accepting/declining a request acknowledges that recipient's request notification in the same transaction. These notification reads are private bookkeeping and do not expose message read receipts to the sender.
+
+The shared header polls every four seconds, shows an unread badge and notification list with loading/error/empty, refresh, older-page and mark-read controls. New unread activity shows a brief in-app alert after the initial load; historical notifications do not replay as alerts. Clicking request notifications opens the relevant Connections entry; message/acceptance notifications open their conversation. Viewing a conversation acknowledges only displayed incoming messages and suppresses alerts for that open thread. Logout/account changes clear notification UI and ignore stale responses. Both live/mock consumers use one shared API client; mock notifications reset with the in-memory fixtures.
 
 ## Security result
 ```json

@@ -7,6 +7,7 @@ import StudyPage from "./pages/StudyPage";
 import SecurityPage from "./pages/SecurityPage";
 import { MatchesPage } from "./pages/MatchesPage";
 import { ConnectionsPage } from "./pages/ConnectionsPage";
+import { MessagesPage } from "./pages/MessagesPage";
 import { MyPostsPage } from "./pages/MyPostsPage";
 import { EditPostPage } from "./pages/EditPostPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -35,6 +36,7 @@ export function AppRoutes() {
         <Route path="security" element={<SecurityPage />} />
         <Route path="my-posts" element={<MyPostsPage />} />
         <Route path="connections" element={<ConnectionsPage />} />
+        <Route path="messages/:kind/:id" element={<MessagesPage />} />
         <Route path="posts/:id/matches" element={<MatchesPage />} />
         <Route path="posts/:id/edit" element={<EditPostPage />} />
         <Route

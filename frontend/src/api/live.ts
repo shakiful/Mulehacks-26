@@ -106,8 +106,33 @@ export function createLiveApi(
       request("/connections", "POST", { source_post_id, target_post_id }),
     listConnections: (status) =>
       request(`/connections${status ? `?status=${status}` : ""}`),
+    getConnection: (id) => request(`/connections/${id}`),
     updateConnection: (id, status) =>
       request(`/connections/${id}`, "PATCH", { status }),
+    joinPost: (id, seats) => request(`/posts/${id}/join`, "POST", seats === undefined ? {} : { seats }),
+    listJoins: (status) => request(`/joins${status ? `?status=${status}` : ""}`),
+    getJoin: (id) => request(`/joins/${id}`),
+    updateJoin: (id, status) => request(`/joins/${id}`, "PATCH", { status }),
+    listMessages: (kind, id, query = {}) => {
+      const params = new URLSearchParams();
+      Object.entries(query).forEach(([key, value]) => {
+        if (value !== undefined) params.set(key, String(value));
+      });
+      return request(`/${kind === "join" ? "joins" : "connections"}/${id}/messages${params.size ? `?${params}` : ""}`);
+    },
+    sendMessage: (kind, id, text) => request(`/${kind === "join" ? "joins" : "connections"}/${id}/messages`, "POST", { text }),
+    listNotifications: (query = {}) => {
+      const params = new URLSearchParams();
+      Object.entries(query).forEach(([key, value]) => {
+        if (value !== undefined) params.set(key, String(value));
+      });
+      return request(`/notifications${params.size ? `?${params}` : ""}`);
+    },
+    readNotification: (id) => request(`/notifications/${id}`, "PATCH", { read: true }),
+    readNotifications: (through_id) => request("/notifications/read", "POST", { through_id }),
+    readThreadNotifications: (kind, thread_id, through_message_id) => request("/notifications/read-thread", "POST", {
+      kind, thread_id, ...(through_message_id === undefined ? {} : { through_message_id }),
+    }),
     analyzeSecurity: (text) => request("/security/analyze", "POST", { text }),
   };
 }

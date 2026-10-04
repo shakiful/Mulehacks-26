@@ -143,6 +143,60 @@ export interface Connection {
   updated_at: string;
   reserved_seats: number;
 }
+export interface PostJoin {
+  id: number;
+  post: Post;
+  requester: UserSummary;
+  receiver: UserSummary;
+  category: Category;
+  post_intent: Intent;
+  status: ConnectionStatus;
+  requested_seats: number;
+  reserved_seats: number;
+  created_at: string;
+  updated_at: string;
+}
+export type ThreadKind = "connection" | "join";
+export interface Message {
+  id: number;
+  connection_id: number | null;
+  join_id: number | null;
+  sender: UserSummary;
+  text: string;
+  created_at: string;
+}
+export interface MessageQuery {
+  limit?: number;
+  before_id?: number;
+  after_id?: number;
+}
+export interface MessageList {
+  items: Message[];
+  has_more: boolean;
+}
+export type NotificationKind = "NEW_MESSAGE" | "JOIN_REQUEST" | "JOIN_ACCEPTED" | "CONNECTION_REQUEST" | "CONNECTION_ACCEPTED";
+export interface StudentNotification {
+  id: number;
+  kind: NotificationKind;
+  actor: UserSummary;
+  post_title: string;
+  connection_id: number | null;
+  join_id: number | null;
+  message_id: number | null;
+  created_at: string;
+  read_at: string | null;
+}
+export interface NotificationQuery {
+  limit?: number;
+  unread_only?: boolean;
+  before_id?: number;
+  after_id?: number;
+}
+export interface NotificationList {
+  items: StudentNotification[];
+  unread_count: number;
+  has_more: boolean;
+}
 export interface SecurityResult {
   risk_level: "LOW" | "MEDIUM" | "HIGH";
   summary: string;
@@ -189,9 +243,20 @@ export interface ApiClient {
     target_post_id: number,
   ): Promise<Connection>;
   listConnections(status?: ConnectionStatus): Promise<{ items: Connection[] }>;
+  getConnection(id: number): Promise<Connection>;
   updateConnection(
     id: number,
     status: "ACCEPTED" | "DECLINED" | "CANCELLED",
   ): Promise<Connection>;
+  joinPost(post_id: number, seats?: number): Promise<PostJoin>;
+  listJoins(status?: ConnectionStatus): Promise<{ items: PostJoin[] }>;
+  getJoin(id: number): Promise<PostJoin>;
+  updateJoin(id: number, status: "ACCEPTED" | "DECLINED" | "CANCELLED"): Promise<PostJoin>;
+  listMessages(kind: ThreadKind, id: number, query?: MessageQuery): Promise<MessageList>;
+  sendMessage(kind: ThreadKind, id: number, text: string): Promise<Message>;
+  listNotifications(query?: NotificationQuery): Promise<NotificationList>;
+  readNotification(id: number): Promise<StudentNotification>;
+  readNotifications(through_id: number): Promise<{ unread_count: number }>;
+  readThreadNotifications(kind: ThreadKind, thread_id: number, through_message_id?: number): Promise<{ unread_count: number }>;
   analyzeSecurity(text: string): Promise<SecurityResult>;
 }

@@ -3,7 +3,7 @@ from math import asin, cos, isfinite, radians, sin, sqrt
 
 from sqlalchemy import func, select, text
 
-from .models import Connection, Post, RideReservation
+from .models import Connection, Post, PostJoin, RideReservation
 
 MAX_DISTANCE_KM = 5.0
 KM_PER_MILE = 1.609344
@@ -43,6 +43,14 @@ def attach_availability(db, posts):
                   .where(RideReservation.offer_post_id.in_(ids)).group_by(RideReservation.offer_post_id)).all()) if ids else {}
     booked = set(db.scalars(select(RideReservation.request_post_id)
                  .where(RideReservation.request_post_id.in_(ids))).all()) if ids else set()
+    if ids:
+        joins = db.scalars(select(PostJoin).where(PostJoin.post_id.in_(ids),
+                           PostJoin.category == 'RIDE', PostJoin.status == 'ACCEPTED')).all()
+        for item in joins:
+            if item.post_intent == 'OFFER':
+                totals[item.post_id] = totals.get(item.post_id, 0) + item.reserved_seats
+            else:
+                booked.add(item.post_id)
     for post in posts:
         post.ride_booked = post.id in booked
         post.ride_availability = None

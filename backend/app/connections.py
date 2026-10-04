@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from .errors import APIError
 from .matching import compatible
 from .models import Connection, RideReservation
+from . import notifications
 from .posts import get_post
 from .rides import begin_seat_transaction, seats_remaining
 
@@ -20,6 +21,8 @@ def create_connection(db, user, body):
         source_post_id=source.id, target_post_id=target.id, pair_low=low, pair_high=high)
     db.add(connection)
     try:
+        db.flush()
+        notifications.request_event(db, connection, 'CONNECTION_REQUEST')
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -64,6 +67,10 @@ def transition(db, user, connection_id, status):
         db.rollback()
         raise APIError(409, 'CONFLICT', 'The connection state has changed.')
     try:
+        if status in ('ACCEPTED', 'DECLINED'):
+            notifications.acknowledge_request(db, connection)
+        if status == 'ACCEPTED':
+            notifications.request_event(db, connection, 'CONNECTION_ACCEPTED')
         db.commit()
     except IntegrityError:
         db.rollback()
