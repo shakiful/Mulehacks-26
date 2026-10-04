@@ -21,8 +21,8 @@ export function questionsForDraft(draft: PreviewDraft): Clarification[] {
   const ask = (field: string, question: string, required = false) => questions.push({ field, question, required });
   const details = draft.details;
   if (draft.category === "RIDE") {
-    if (!details.origin_point) ask("details.origin_point", "Select your From point on the map.", true);
-    if (!details.destination_point) ask("details.destination_point", "Select your To point on the map.", true);
+    if (!details.origin_point) ask("details.origin_point", "Choose your From location from the suggestions.", true);
+    if (!details.destination_point) ask("details.destination_point", "Choose your To location from the suggestions.", true);
     if (empty(details.origin)) ask("details.origin", "Where are you starting from?", true);
     if (empty(details.destination)) ask("details.destination", "Where are you going?", true);
     if (empty(details.seats)) ask("details.seats", draft.intent === "OFFER" ? "How many seats can you offer?" : "How many seats do you need?", true);

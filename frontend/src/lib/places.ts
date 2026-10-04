@@ -62,6 +62,14 @@ export async function searchPlaces(query: string, near: GeoPoint, signal: AbortS
   return lookup(text, { types: 'poi,address,road,place,municipality', limit: '5', autocomplete: 'false', proximity: `${near.lng},${near.lat}` }, signal);
 }
 
+export async function suggestPlaces(query: string, near: GeoPoint, signal: AbortSignal): Promise<NamedPlace[]> {
+  const text = query.trim();
+  if (text.length < 3 || text.length > 200) return [];
+  const places = await lookup(text, { types: 'poi,address,road', limit: '5', autocomplete: 'true', proximity: `${near.lng},${near.lat}` }, signal);
+  // A city alone is too broad for a pickup or destination, even if the provider ignores the filter.
+  return places.filter((place) => place.types?.some((type) => ['poi', 'address', 'road'].includes(type)));
+}
+
 export async function reversePlace(point: GeoPoint, signal: AbortSignal): Promise<string | null> {
   const places = await lookup(`${point.lng},${point.lat}`, { types: 'poi,address,road' }, signal);
   return places[0]?.label ?? null;

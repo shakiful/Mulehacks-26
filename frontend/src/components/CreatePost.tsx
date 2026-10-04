@@ -18,7 +18,10 @@ import { CAMPUS_TIME_ZONE, fromTimestamp, resolveDateTime, type DateTimeDraft } 
 import { ErrorState } from "./States";
 import { Field } from "./Field";
 import { DateTimeFields } from "./DateTimeFields";
-import { RideLocationAutofill } from './RideLocationAutofill';
+import { RidePlaceField } from './RidePlaceField';
+import type { RidePointField } from './RideLocationAutofill';
+import type { NamedPlace } from '../lib/places';
+import { rideDistanceMiles, RIDE_MATCH_RADIUS_MILES, UCM_CAMPUS } from '../lib/geo';
 const RideRoutePicker = lazy(() => import("./RideRoutePicker"));
 
 export function CreatePost({
@@ -70,7 +73,11 @@ export function CreatePost({
   const [refining, setRefining] = useState(false);
   const [refineError, setRefineError] = useState<unknown>(null);
   const [refineMessage, setRefineMessage] = useState("");
+  const [showMap, setShowMap] = useState(false);
+  const routeLocked = Boolean(initialPost?.ride_availability?.reserved_seats);
+  const routeMiles = rideDistanceMiles(details.origin_point, details.destination_point);
   const dirty = useRef(new Set<string>());
+  const manualMapLabels = useRef(new Set<RidePointField>());
   const context = useRef(previewContext ?? {
     reference_time: new Date().toISOString(),
     timezone: CAMPUS_TIME_ZONE,
@@ -89,6 +96,33 @@ export function CreatePost({
   const changeDetail = (key: string, value: string | number | GeoPoint | null) => {
     dirty.current.add(`details.${key}`);
     setDetails((current) => ({ ...current, [key]: value }));
+  };
+  const selectRidePlace = (field: RidePointField, point: GeoPoint, name: string | null) => {
+    if (routeLocked) return;
+    const label = field === 'origin_point' ? 'origin' : 'destination';
+    dirty.current.add(`details.${field}`);
+    dirty.current.add(`details.${label}`);
+    if (name === null) manualMapLabels.current.add(field);
+    else manualMapLabels.current.delete(field);
+    setDetails((current) => ({ ...current, [field]: point, [label]: name ?? '' }));
+  };
+  const resolveRideName = (field: RidePointField, point: GeoPoint, name: string) => {
+    const label = field === 'origin_point' ? 'origin' : 'destination';
+    setDetails((current) => {
+      const selected = current[field];
+      if (routeLocked || !selected || typeof selected !== 'object' || selected.lat !== point.lat || selected.lng !== point.lng
+        || current[label]) return current;
+      manualMapLabels.current.delete(field);
+      return { ...current, [label]: name };
+    });
+  };
+  const autoResolveRidePlace = (field: RidePointField, hint: string, place: NamedPlace) => {
+    const label = field === 'origin_point' ? 'origin' : 'destination';
+    setDetails((current) => {
+      if (routeLocked || current[label] !== hint || current[field] || dirty.current.has(`details.${label}`)
+        || dirty.current.has(`details.${field}`)) return current;
+      return { ...current, [field]: place.point, [label]: place.label };
+    });
   };
   const edit = (field: string, setter: (value: string) => void, value: string) => {
     dirty.current.add(field);
@@ -304,7 +338,7 @@ export function CreatePost({
       )}
       {refineMessage && <p role="status" className="notice mt-4">{refineMessage}</p>}
       {Boolean(initialPost?.ride_availability?.reserved_seats) && (
-        <p className="notice mt-4">Passengers are already accepted. Keep the same From/To pins, labels and times.
+        <p className="notice mt-4">Passengers are already accepted. Keep the same From/To locations and times.
           You can edit the description or change capacity above the reserved count.
           Setting capacity to the reserved count marks this ride filled.</p>
       )}
@@ -392,44 +426,48 @@ export function CreatePost({
         </div>
         {selectedCategory === "RIDE" && (
           <>
-            {detailField("origin", "From")}
-            {detailField("destination", "To")}
+            {(['origin', 'destination'] as const).map((label) => {
+              const field: RidePointField = `${label}_point`;
+              return <RidePlaceField key={label} field={field} value={ridePlaceLabel(details[label], label)}
+                point={typeof details[field] === 'object' ? details[field] : null}
+                near={label === 'destination' && typeof details.origin_point === 'object' && details.origin_point
+                  ? details.origin_point : UCM_CAMPUS}
+                autoHint={rideHint(label)} disabled={pending || refining || routeLocked}
+                error={fieldError(`details.${label}`) ?? fieldError(`details.${field}`)}
+                onEdit={(value) => {
+                  if (routeLocked) return;
+                  dirty.current.add(`details.${label}`); dirty.current.add(`details.${field}`);
+                  // Suggestion edits invalidate its point. An unnamed, explicitly clicked map point
+                  // can still receive a manual name if geocoding is offline.
+                  setDetails((current) => ({ ...current, [label]: value,
+                    [field]: manualMapLabels.current.has(field) ? current[field] : null }));
+                }}
+                onSelect={(place) => selectRidePlace(field, place.point, place.label)}
+                onAutoResolved={autoResolveRidePlace}
+                onNameResolved={(point, name) => resolveRideName(field, point, name)} />;
+            })}
             <div className="md:col-span-2">
-              <Suspense fallback={<p role="status">Loading the route map…</p>}>
-                <RideLocationAutofill originHint={rideHint('origin')} destinationHint={rideHint('destination')}
-                  disabled={pending || refining} onResolved={(field, hint, place) => {
-                    const label = field === 'origin_point' ? 'origin' : 'destination';
-                    setDetails((current) => {
-                      if (current[label] !== hint || current[field] || dirty.current.has(`details.${label}`)
-                        || dirty.current.has(`details.${field}`)) return current;
-                      return { ...current, [field]: place.point, [label]: place.label };
-                    });
-                  }} />
+              <p className="text-sm text-stone-600" aria-live="polite">
+                {routeMiles === null ? 'Choose both locations to calculate distance.'
+                  : `From → To: ${routeMiles.toFixed(2)} miles straight-line. Driving distance may be longer.`}
+              </p>
+              <p className="mt-1 text-xs text-stone-500">Ride matches need pickup and destination locations within {RIDE_MATCH_RADIUS_MILES.toFixed(2)} miles each.</p>
+              <p className="mt-1 text-xs text-stone-500">Place searches are sent to MapTiler. Use a place or street name; no device location is requested.</p>
+              {preview && <p className="mt-2 text-sm text-stone-600">Places from your sentence can fill these fields automatically. Review the addresses before posting.</p>}
+              <button type="button" className="text-button mt-3" aria-expanded={showMap} aria-controls="ride-route-map"
+                onClick={() => setShowMap((visible) => !visible)}>{showMap ? 'Hide map' : 'Show map (optional)'}</button>
+              {showMap && <div id="ride-route-map" className="mt-3"><Suspense fallback={<p role="status">Loading the route map…</p>}>
                 <RideRoutePicker
                   origin={typeof details.origin_point === "object" ? details.origin_point : null}
                   destination={typeof details.destination_point === "object" ? details.destination_point : null}
                   originLabel={ridePlaceLabel(details.origin, 'origin')}
                   destinationLabel={ridePlaceLabel(details.destination, 'destination')}
-                  disabled={pending || refining}
+                  disabled={pending || refining || routeLocked}
                   errors={[fieldError("details.origin_point"), fieldError("details.destination_point")].filter(Boolean) as string[]}
-                  onSelect={(field, point, name) => {
-                    const label = field === "origin_point" ? "origin" : "destination";
-                    dirty.current.add(`details.${field}`);
-                    dirty.current.add(`details.${label}`);
-                    setDetails((current) => ({ ...current, [field]: point, [label]: name ?? '' }));
-                  }}
-                  onNameResolved={(field, point, name) => {
-                    const label = field === 'origin_point' ? 'origin' : 'destination';
-                    setDetails((current) => {
-                      const selected = current[field];
-                      // A delayed lookup cannot erase a manual name or a newer selection.
-                      if (!selected || typeof selected !== 'object' || selected.lat !== point.lat || selected.lng !== point.lng
-                        || current[label]) return current;
-                      return { ...current, [label]: name };
-                    });
-                  }}
+                  onSelect={selectRidePlace}
+                  onNameResolved={resolveRideName}
                 />
-              </Suspense>
+              </Suspense></div>}
             </div>
             {detailField(
               "seats",

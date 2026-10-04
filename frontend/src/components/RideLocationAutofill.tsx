@@ -3,7 +3,7 @@ import { hasPlaceSearch, resolveRidePlace, type NamedPlace } from '../lib/places
 
 export type RidePointField = 'origin_point' | 'destination_point';
 
-function Location({ field, hint, disabled, onResolved }: {
+export function RideLocationHint({ field, hint, disabled, onResolved }: {
   field: RidePointField; hint: string; disabled: boolean;
   onResolved: (field: RidePointField, hint: string, place: NamedPlace) => void;
 }) {
@@ -25,16 +25,16 @@ function Location({ field, hint, disabled, onResolved }: {
       else {
         setCandidates(candidates);
         setMessage(candidates.length ? `Choose the ${label} location you meant by “${hint}”.`
-          : `We couldn't locate “${hint}”. Add a street/place name and city, or choose its map point.`);
+          : `We couldn't locate “${hint}”. Type a street/place name and city, then choose a suggestion.`);
       }
     }).catch(() => {
-      if (!request.signal.aborted) setMessage(`Couldn't find ${label} on the map. Retry, search or select a point manually.`);
+      if (!request.signal.aborted) setMessage(`Couldn't find ${label}. Retry, or type a place name to see suggestions.`);
     }).finally(() => { if (!request.signal.aborted) setBusy(false); });
     return () => request.abort();
   }, [field, hint, disabled, attempt]);
 
   return <div className="mt-2">
-    {busy && <p role="status">Finding {label} on the map…</p>}
+    {busy && <p role="status">Finding {label} from your sentence…</p>}
     {!busy && message && <>
       <p>{message}</p>
       <ul className="mt-2 divide-y divide-stone-200" aria-label={`${label} location choices`}>
@@ -56,7 +56,7 @@ export function RideLocationAutofill({ originHint, destinationHint, disabled = f
   if (!hasPlaceSearch()) return <p className="notice" role="status">Automatic map locations are unavailable. Select From and To on the map.</p>;
   return <section className="notice mb-3" aria-label="Locations from your sentence">
     <p>Finding the places in your sentence. UCM and an unspecified Walmart use Warrensburg. Review the names and pins before posting.</p>
-    {originHint && <Location field="origin_point" hint={originHint} disabled={disabled} onResolved={onResolved} />}
-    {destinationHint && <Location field="destination_point" hint={destinationHint} disabled={disabled} onResolved={onResolved} />}
+    {originHint && <RideLocationHint field="origin_point" hint={originHint} disabled={disabled} onResolved={onResolved} />}
+    {destinationHint && <RideLocationHint field="destination_point" hint={destinationHint} disabled={disabled} onResolved={onResolved} />}
   </section>;
 }

@@ -148,10 +148,11 @@ describe("frontend workflows", () => {
       screen.getByRole("textbox", { name: "Description" }),
       "Synthetic ride request",
     );
-    await user.type(screen.getByRole("textbox", { name: "From" }), "UCM");
-    await user.type(screen.getByRole("textbox", { name: "To" }), "Walmart");
+    await user.type(screen.getByRole("combobox", { name: "From" }), "UCM");
+    await user.type(screen.getByRole("combobox", { name: "To" }), "Walmart");
     fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "2026-10-03" } });
     fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "18:00" } });
+    await user.click(screen.getByRole('button', { name: 'Show map (optional)' }));
     await user.click(await screen.findByRole("button", { name: "Select From point" }));
     await user.click(screen.getByRole("button", { name: "Select To point" }));
     await user.click(screen.getByRole("button", { name: "Confirm & post" }));
@@ -211,7 +212,7 @@ describe("frontend workflows", () => {
     await screen.findByRole("heading", {
       name: "A quick check before you connect.",
     });
-    expect(screen.getByRole("textbox", { name: "From" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "From" })).toHaveValue("");
     expect(
       screen.getByLabelText("Start date"),
     ).toHaveValue("");

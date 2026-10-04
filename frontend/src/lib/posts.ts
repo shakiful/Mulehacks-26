@@ -91,7 +91,7 @@ export function validatePost(input: CreatePostInput): FieldError[] {
         const point = input.details[field];
         if (!point || !Number.isFinite(point.lat) || !Number.isFinite(point.lng)
           || Math.abs(point.lat) > 90 || Math.abs(point.lng) > 180)
-          add(`details.${field}`, `Select the ${field === "origin_point" ? "From" : "To"} point on the map.`);
+          add(`details.${field}`, `Choose a valid ${field === "origin_point" ? "From" : "To"} location from the suggestions or optional map.`);
       }
       if (!nonempty(input.details.origin))
         add("details.origin", "Enter the starting location.");

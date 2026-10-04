@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { reversePlace, searchPlaces, resolveRidePlace } from './places';
+import { reversePlace, searchPlaces, suggestPlaces, resolveRidePlace } from './places';
 
 const point = { lat: 38.7625, lng: -93.7395 };
 const feature = { id: 'road.demo', place_name: 'College Avenue, Warrensburg', center: [-93.7395, 38.7625] };
@@ -10,6 +10,21 @@ beforeEach(() => { vi.stubEnv('VITE_MAPTILER_API_KEY', 'synthetic'); vi.stubGlob
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe('MapTiler place lookups', () => {
+  it('autocompletes detailed places and excludes cities and invalid coordinates from suggestions', async () => {
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ features: [
+      { ...feature, place_type: ['road'] }, { ...feature, id: 'city', place_type: ['municipality'] },
+      { ...feature, id: 'bad', place_type: ['poi'], center: [181, 38] },
+    ] })));
+    expect(await suggestPlaces('Col', point, signal())).toEqual([expect.objectContaining({ label: feature.place_name, point })]);
+    const url = fetchSpy.mock.calls[0][0] as URL;
+    expect(url.searchParams.get('autocomplete')).toBe('true');
+    expect(url.searchParams.get('types')).toBe('poi,address,road');
+  });
+  it('avoids provider requests for short or oversized suggestion queries', async () => {
+    expect(await suggestPlaces('Wa', point, signal())).toEqual([]);
+    expect(await suggestPlaces('x'.repeat(201), point, signal())).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
   it('uses a fixed host, encodes search text and biases results around the map center', async () => {
     expect(await searchPlaces('Walmart / Warrensburg', point, signal())).toEqual([{ id: 'road.demo', label: feature.place_name, point }]);
     const url = fetchSpy.mock.calls[0][0] as URL;

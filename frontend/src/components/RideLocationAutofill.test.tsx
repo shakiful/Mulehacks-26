@@ -52,7 +52,7 @@ describe('ride sentence locations', () => {
     expect(fake.resolve).not.toHaveBeenCalled();
     fake.configured = true; fake.resolve.mockRejectedValueOnce(new Error('provider secret'));
     view.rerender(<RideLocationAutofill originHint="UCM" destinationHint={null} onResolved={vi.fn()} />);
-    await screen.findByText(/Couldn't find From on the map/);
+    await screen.findByText(/Couldn't find From/);
     expect(view.container.textContent).not.toContain('provider secret');
     await userEvent.setup().click(screen.getByRole('button', { name: 'Retry From lookup' }));
     await waitFor(() => expect(fake.resolve).toHaveBeenCalledTimes(2));
