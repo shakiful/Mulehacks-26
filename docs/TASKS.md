@@ -9,7 +9,6 @@ Unchecked boxes are planned work, not completed features. Source schedule assume
 - [x] Load JSON fixtures in the frontend mock client; same public API methods in live mode.
 
 ## Person 2 — Rafi
-- [x] User-requested Netlify readiness: automatic frontend build settings, validated same-origin API proxy before SPA fallback, explicit isolated fixture previews, public/backend secret separation and static headers. Render Blueprint adds a paid persistent SQLite disk, exact HTTPS origins, secure cookies, single-worker PORT startup and bounded provider timeouts. Existing endpoints/data and local development remain unchanged. Deployment guide covers import, service variables, Gemini/MapTiler, optional seeding, persistence and hosted verification. Validation: 35 backend deployment/auth checks, 188 frontend tests, 7 deployment-script checks, TypeScript and live/fixture builds passed; the hosted entry point returned health OK using an isolated synthetic database. Hosting accounts/resources have not been created.
 - [x] P2-1: FastAPI app/config/CORS, SQLAlchemy/SQLite and seed command; /health. Demo profiles subsequently replaced by student login (P1-11).
 - [x] P2-2: Pydantic category schemas, post create/list/get/status, standard errors and ownership checks.
 - [x] P2-3: Connection create/list/transitions; duplicate checks and participant validation.
