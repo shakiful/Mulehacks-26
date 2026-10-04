@@ -3,10 +3,10 @@
 Unchecked boxes are planned work, not completed features. Source schedule assumes ~24 hours; adjust to actual time remaining.
 
 ## Shared checkpoint 0 — contract
-- [ ] Inspect existing repository and reconcile this package with existing code.
+- [x] Person 1 inspected the repository: documentation and fixtures only; no existing application code to reconcile. API interfaces unchanged.
 - [ ] Confirm MVP API, identity mode, branch names and database paths.
-- [ ] Person 1 agrees dedicated Study/Security page filenames for Person 2.
-- [ ] Load JSON fixtures in the frontend mock client; same public API methods in live mode.
+- [x] Person 1 reserved dedicated Study/Security page filenames for Person 2 (paths below).
+- [x] Load JSON fixtures in the frontend mock client; same public API methods in live mode.
 
 ## Person 2 — Rafi
 - [ ] P2-1: FastAPI app/config/CORS, SQLAlchemy/SQLite and seed command; /health and demo profiles.
@@ -20,14 +20,26 @@ Unchecked boxes are planned work, not completed features. Source schedule assume
 - [ ] P2-9: Tests, edge cases, provider failures and backend integration fixes.
 
 ## Person 1
-- [ ] P1-1: React/Vite/Tailwind foundation, dashboard/navigation and demo profile selector.
-- [ ] P1-2: Shared PostCard/MatchCard/CreatePost/components, one typed API client and mock mode.
-- [ ] P1-3: Natural-language preview, editable confirmation, category routing and missing-field UI.
-- [ ] P1-4: Ride form/list/matches; request/offer and seats semantics.
-- [ ] P1-5: Food form/groups; no booking/ordering claims.
-- [ ] P1-6: Community page by reusing shared forms/cards.
-- [ ] P1-7: Connection request/inbox/accept/decline and post completion UI.
-- [ ] P1-8: Loading/error/empty states, accessible controls and frontend build check.
+- [x] P1-1: React/Vite/Tailwind foundation, dashboard/navigation and demo profile selector.
+- [x] P1-2: Shared PostCard/MatchCard/CreatePost/components, one typed API client and mock mode.
+- [x] P1-3: Natural-language preview, editable confirmation, category routing and missing-field UI (scripted mock previews).
+- [x] P1-4: Ride form/list/matches; request/offer and seats semantics (new mock posts return empty matches).
+- [x] P1-5: Food form/groups; no booking/ordering claims.
+- [x] P1-6: Community page by reusing shared forms/cards.
+- [x] P1-7: Connection request/inbox/accept/decline/cancel and post completion UI (fixture workflow).
+- [x] P1-8: Loading/error/empty states, accessible controls and frontend checks.
+
+### Person 2 frontend handoff
+
+- **Study:** `frontend/src/pages/StudyPage.tsx`, route `/study`. Placeholder currently displays the shared Study post board. Person 2 owns the dedicated Study workflow.
+- **Security:** `frontend/src/pages/SecurityPage.tsx`, route `/security`. Private placeholder only. Person 2 owns the analyzer UI; do not create public posts or persist/fetch pasted messages/URLs.
+- Shared API: `frontend/src/api/types.ts` defines `ApiClient`; `frontend/src/context/ApiContext.tsx` exports `useApi()`. Call `api.understand`, `api.createPost`, `api.getMatches`, or `api.analyzeSecurity` rather than creating another client.
+- Shared UI: `components/CreatePost.tsx`, `PostCard.tsx`, `MatchCard.tsx`, `PostBoard.tsx`, `Field.tsx`, `States.tsx`; async loader: `hooks/useResource.ts`. Pages render inside the existing layout.
+- Person 1 owns `App.tsx`, navigation, styles, dependencies and API adapters. Coordinate any shared-file edits.
+- Mock mode defaults on. Set `VITE_USE_MOCKS=false` and `VITE_API_BASE_URL=http://localhost:8000/api` in `frontend/.env.local`, restart Vite, and verify the live backend. Mock matching replays only supplied fixture candidates/scores; newly created posts have no canned matches.
+- Remaining: Person 2 implementation, real API/CORS integration, actual ranking, and joint end-to-end acceptance checks. The API contract and fixtures were not changed.
+- Work stayed on the user's existing local `feat/frontend` branch by request. Remote-main refresh is unverified because GitHub fetch requires authentication.
+- Validation: `npm run check` passed all 19 tests; `npm run build` passed. Desktop (1440px) and mobile (390px) dashboard smoke checks passed in headless Chrome. Backend checks remain pending.
 
 ## Integration checkpoints
 - Hours 0–2: contract/fixtures and skeletons; each person builds independently.

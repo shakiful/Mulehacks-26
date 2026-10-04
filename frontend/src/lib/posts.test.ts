@@ -1,0 +1,88 @@
+import { describe, expect, it } from "vitest";
+import { validatePost } from "./posts";
+import type { CreatePostInput } from "../api/types";
+
+const ride: CreatePostInput = {
+  category: "RIDE",
+  intent: "REQUEST",
+  title: "Walmart ride",
+  text: "Synthetic ride request",
+  location: null,
+  starts_at: "2026-10-03T18:00:00-05:00",
+  ends_at: null,
+  details: { origin: "UCM", destination: "Walmart", seats: 1, purpose: null },
+};
+describe("confirmed post validation", () => {
+  it("rejects invalid seats, missing routes, ambiguous dates, and invalid intervals", () => {
+    expect(validatePost(ride)).toEqual([]);
+    const errors = validatePost({
+      ...ride,
+      starts_at: "tomorrow",
+      ends_at: "2026-10-03T17:00:00",
+      details: { origin: "", destination: "", seats: 0 },
+    });
+    expect(errors.map((error) => error.field)).toEqual(
+      expect.arrayContaining([
+        "details.seats",
+        "details.origin",
+        "details.destination",
+        "starts_at",
+        "ends_at",
+      ]),
+    );
+    expect(
+      validatePost({ ...ride, ends_at: "2026-10-03T17:00:00-05:00" }),
+    ).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: "ends_at" })]),
+    );
+    expect(validatePost({ ...ride, starts_at: "2026-10-03T18:00:00" })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: "starts_at" })]),
+    );
+    expect(
+      validatePost({ ...ride, starts_at: "2026-02-30T18:00:00-05:00" }),
+    ).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: "starts_at" })]),
+    );
+  });
+  it("requires category fields and preserves optional nulls", () => {
+    const study: CreatePostInput = {
+      ...ride,
+      category: "STUDY",
+      intent: "PARTNER",
+      starts_at: null,
+      details: { course: null, topic: "SQL", mode: null, skill_level: null },
+    };
+    expect(validatePost(study)).toEqual([]);
+    expect(
+      validatePost({ ...study, details: { ...study.details, topic: null } }),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: "details.course" }),
+      ]),
+    );
+    const food: CreatePostInput = {
+      ...ride,
+      category: "RESTAURANT",
+      details: {
+        restaurant: null,
+        cuisine: "Indian",
+        activity_type: "DINING",
+        group_size: 2,
+      },
+    };
+    expect(validatePost(food)).toEqual([]);
+    expect(
+      validatePost({
+        ...food,
+        starts_at: null,
+        details: { ...food.details, cuisine: null, group_size: 1.5 },
+      }).map((error) => error.field),
+    ).toEqual(
+      expect.arrayContaining([
+        "details.restaurant",
+        "details.group_size",
+        "starts_at",
+      ]),
+    );
+  });
+});
