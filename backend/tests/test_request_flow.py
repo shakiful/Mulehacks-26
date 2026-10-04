@@ -6,7 +6,6 @@ from sqlalchemy import func, select
 from backend.app.ai.understanding import UnderstandingService
 from backend.app.models import Connection, Post
 from backend.app.schemas import UnderstandInput
-from backend.app.seed import DEMO_ROUTE
 
 REFERENCE = '2026-10-03T16:00:00-05:00'
 
@@ -20,7 +19,6 @@ def make_ride(client, *, author=1, **changes):
                 starts_at='2026-10-03T18:00:00-05:00',
                 details=dict(origin='UCM', destination='Walmart', seats=1))
     body.update(changes)
-    body['details'] = {**DEMO_ROUTE, **body['details']}
     response = client.post('/api/posts', headers={'X-Demo-User-Id': str(author)}, json=body)
     assert response.status_code == 201, response.text
     return response.json()
@@ -33,16 +31,15 @@ def test_user_request_preview_confirm_matches_connect_accept(client, headers):
     preview = preview_response.json()
     assert preview['category'] == 'RIDE' and preview['intent'] == 'REQUEST'
     assert preview['analysis_mode'] == 'HEURISTIC'
-    assert preview['details'] == {'origin': None, 'destination': 'Walmart', 'seats': None, 'purpose': None,
-                                 'origin_point': None, 'destination_point': None}
-    assert set(preview['missing_fields']) == {'details.origin', 'details.seats', 'details.origin_point', 'details.destination_point'}
+    assert preview['details'] == {'origin': None, 'destination': 'Walmart', 'seats': None, 'purpose': None}
+    assert set(preview['missing_fields']) == {'details.origin', 'details.seats'}
     assert datetime.fromisoformat(preview['starts_at']) == datetime.fromisoformat('2026-10-03T23:00:00Z')
     assert preview['location'] is None
     with client.app.state.session_factory() as db:
         assert db.scalar(select(func.count()).select_from(Post)) == 6
     body = {field: preview[field] for field in ('category', 'intent', 'title', 'text', 'location', 'starts_at', 'ends_at', 'details')}
     assert client.post('/api/posts', json=body, headers=headers).status_code == 422
-    body['details'].update(origin='UCM', seats=1, **DEMO_ROUTE)
+    body['details'].update(origin='UCM', seats=1)
     post_response = client.post('/api/posts', json=body, headers=headers)
     assert post_response.status_code == 201
     post = post_response.json()
@@ -58,13 +55,12 @@ def test_user_request_preview_confirm_matches_connect_accept(client, headers):
     })
     assert connect.status_code == 201, connect.text
     connection = connect.json()
-    assert set(connection) == {'id', 'requester_id', 'receiver_id', 'source_post_id', 'target_post_id', 'status', 'created_at', 'updated_at', 'reserved_seats'}
+    assert set(connection) == {'id', 'requester_id', 'receiver_id', 'source_post_id', 'target_post_id', 'status', 'created_at', 'updated_at'}
     assert connection['receiver_id'] == 2 and connection['status'] == 'PENDING'
     accepted = client.patch(f"/api/connections/{connection['id']}", headers={'X-Demo-User-Id': '2'}, json={'status': 'ACCEPTED'})
     assert accepted.status_code == 200 and accepted.json()['status'] == 'ACCEPTED'
     assert client.get('/api/connections?status=ACCEPTED', headers=headers).json()['items'][0]['id'] == connection['id']
-    assert client.get(f"/api/posts/{post['id']}", headers=headers).json()['status'] == 'COMPLETED'
-    assert accepted.json()['reserved_seats'] == 1
+    assert client.get(f"/api/posts/{post['id']}", headers=headers).json()['status'] == 'OPEN'
 
 
 @pytest.mark.parametrize('text,category', [
@@ -187,10 +183,8 @@ def test_provider_output_validated_without_coercing_boolean_seats(settings):
 
 @pytest.mark.parametrize('changes', [
     {'intent': 'REQUEST'},
-    {'details': {'origin': 'Elsewhere', 'destination': 'Walmart', 'seats': 3,
-                 'origin_point': {'lat': 39.5, 'lng': -93.7395}}},
-    {'details': {'origin': 'UCM', 'destination': 'Library', 'seats': 3,
-                 'destination_point': {'lat': 39.5, 'lng': -93.7390}}},
+    {'details': {'origin': 'Elsewhere', 'destination': 'Walmart', 'seats': 3}},
+    {'details': {'origin': 'UCM', 'destination': 'Library', 'seats': 3}},
     {'details': {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1}},
     {'starts_at': '2026-10-03T20:00:00-05:00'},
 ])

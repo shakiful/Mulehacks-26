@@ -1,4 +1,4 @@
-import type { Category, DraftDetails, Intent } from "../api/types";
+import type { Category, Intent } from "../api/types";
 
 export interface PreviewDraft {
   category: Category;
@@ -6,7 +6,7 @@ export interface PreviewDraft {
   location: string | null;
   starts_at: string | null;
   ends_at: string | null;
-  details: DraftDetails;
+  details: Record<string, string | number | null>;
 }
 export interface Clarification {
   field: string;
@@ -21,8 +21,6 @@ export function questionsForDraft(draft: PreviewDraft): Clarification[] {
   const ask = (field: string, question: string, required = false) => questions.push({ field, question, required });
   const details = draft.details;
   if (draft.category === "RIDE") {
-    if (!details.origin_point) ask("details.origin_point", "Choose your From location from the suggestions.", true);
-    if (!details.destination_point) ask("details.destination_point", "Choose your To location from the suggestions.", true);
     if (empty(details.origin)) ask("details.origin", "Where are you starting from?", true);
     if (empty(details.destination)) ask("details.destination", "Where are you going?", true);
     if (empty(details.seats)) ask("details.seats", draft.intent === "OFFER" ? "How many seats can you offer?" : "How many seats do you need?", true);

@@ -10,7 +10,6 @@ from .dining import DiningService
 from .errors import install_handlers
 from .routes import router
 from .security.service import SecurityService
-from .rides import backfill_reservations
 
 
 def create_app(settings: Settings | None = None, *, embedding_provider=None, security_provider=None, dining_provider=None) -> FastAPI:
@@ -23,8 +22,6 @@ def create_app(settings: Settings | None = None, *, embedding_provider=None, sec
         app.state.session_factory = session_factory(engine)
         try:
             Base.metadata.create_all(engine)
-            with app.state.session_factory() as db:
-                backfill_reservations(db)
             yield
         finally:
             engine.dispose()

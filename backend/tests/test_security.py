@@ -83,7 +83,7 @@ def test_route_shape_auth_no_persistence_no_logging_or_link_visits(client, heade
     assert client.get('/api/posts', headers=headers).json()['total'] == before
     with client.app.state.engine.connect() as connection:
         tables = connection.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'").scalars().all()
-    assert set(tables) == {'users', 'posts', 'connections', 'post_embeddings', 'ride_reservations'}
+    assert set(tables) == {'users', 'posts', 'connections', 'post_embeddings'}
     assert client.post('/api/security/analyze', json={'text': SUSPICIOUS}).status_code == 401
     assert client.post('/api/security/analyze', headers={'X-Demo-User-Id': '999'}, json={'text': SUSPICIOUS}).status_code == 401
     assert client.post('/api/analyze', headers=headers, json={'text': SUSPICIOUS}).status_code == 404

@@ -24,20 +24,8 @@ export interface DemoUser {
 export interface RideDetails {
   origin: string;
   destination: string;
-  origin_point: GeoPoint;
-  destination_point: GeoPoint;
   seats: number;
   purpose?: string | null;
-}
-export interface GeoPoint {
-  lat: number;
-  lng: number;
-}
-export type DraftDetails = Record<string, string | number | GeoPoint | null>;
-export interface RideAvailability {
-  total_seats: number;
-  reserved_seats: number;
-  remaining_seats: number;
 }
 export interface StudyDetails {
   course: string | null;
@@ -85,7 +73,6 @@ export type Post = CreatePostInput & {
   status: PostStatus;
   created_at: string;
   updated_at: string;
-  ride_availability?: RideAvailability | null;
 };
 export interface PostList {
   items: Post[];
@@ -109,7 +96,7 @@ export interface UnderstandInput {
 export interface Understanding extends CommonPostInput {
   category: UnderstandingCategory;
   intent: Intent | null;
-  details: DraftDetails | null;
+  details: Record<string, string | number | null> | null;
   missing_fields: string[];
   warnings: string[];
   analysis_mode: AnalysisMode;
@@ -134,7 +121,6 @@ export interface Connection {
   status: ConnectionStatus;
   created_at: string;
   updated_at: string;
-  reserved_seats: number;
 }
 export interface SecurityResult {
   risk_level: "LOW" | "MEDIUM" | "HIGH";

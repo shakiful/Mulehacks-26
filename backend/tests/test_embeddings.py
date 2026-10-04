@@ -230,8 +230,7 @@ def test_ride_and_empty_candidates_do_not_call_provider_even_with_fallback_disab
     provider.failure = TimeoutError('unavailable')
     client.app.state.settings.ai_fallback_enabled = False
     ride = post(client, {'category': 'RIDE', 'intent': 'REQUEST', 'title': 'Demo ride', 'text': 'Synthetic demo ride',
-                        'starts_at': '2026-10-03T18:00:00-05:00', 'details': {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1,
-                        'origin_point': {'lat': 38.7625, 'lng': -93.7395}, 'destination_point': {'lat': 38.7905, 'lng': -93.7390}}})
+                        'starts_at': '2026-10-03T18:00:00-05:00', 'details': {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1}})
     assert match(client, ride).json()['matching_mode'] == 'HEURISTIC'
     empty = post(client, study, intent='PARTNER', details={'topic': 'SQL', 'mode': 'IN_PERSON'})
     assert match(client, empty).json()['matches'] == []
