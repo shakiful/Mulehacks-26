@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { ApiError } from "../api/errors";
 import type {
@@ -11,16 +11,19 @@ import type {
 } from "../api/types";
 import { useApi } from "../context/ApiContext";
 import { blankDetails, categoryNames, validatePost } from "../lib/posts";
+import { questionsForDraft } from "../lib/clarifications";
 import { ErrorState } from "./States";
 import { Field } from "./Field";
 
 export function CreatePost({
   category = "RIDE",
   preview,
+  previewContext,
   onCreated,
 }: {
   category?: Category;
   preview?: Understanding;
+  previewContext?: { reference_time: string; timezone: string };
   onCreated: (post: Post) => void;
 }) {
   const { api } = useApi();
@@ -41,10 +44,70 @@ export function CreatePost({
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [requestError, setRequestError] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
+  const [currentPreview, setCurrentPreview] = useState(preview);
+  const [answer, setAnswer] = useState("");
+  const [refining, setRefining] = useState(false);
+  const [refineError, setRefineError] = useState<unknown>(null);
+  const [refineMessage, setRefineMessage] = useState("");
+  const dirty = useRef(new Set<string>());
+  const context = useRef(previewContext ?? {
+    reference_time: new Date().toISOString(),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
+  const questions = preview ? questionsForDraft({
+    category: selectedCategory, intent, location, starts_at: startsAt, ends_at: endsAt, details,
+  }) : [];
   const fieldError = (name: string) =>
     errors.find((error) => error.field === name)?.message;
-  const changeDetail = (key: string, value: string | number | null) =>
+  const changeDetail = (key: string, value: string | number | null) => {
+    dirty.current.add(`details.${key}`);
     setDetails((current) => ({ ...current, [key]: value }));
+  };
+  const edit = (field: string, setter: (value: string) => void, value: string) => {
+    dirty.current.add(field);
+    setter(value);
+  };
+
+  async function refine() {
+    if (!answer.trim() || refining || pending) return;
+    const combined = `${text.trim()}\nAdditional details: ${answer.trim()}`;
+    if (combined.length > 4000) {
+      setRefineError(new Error("Please shorten your answer or description to fit within 4,000 characters."));
+      return;
+    }
+    setRefining(true);
+    setRefineError(null);
+    setRefineMessage("");
+    try {
+      const result = await api.understand({
+        text: combined, category_hint: selectedCategory, ...context.current,
+      });
+      if (result.category !== selectedCategory || result.intent === null || result.details === null)
+        throw new Error("The preview could not update this category. Please edit the fields below.");
+      if (!dirty.current.has("title")) setTitle(result.title);
+      if (!dirty.current.has("intent")) setIntent(result.intent);
+      const authoritative = result.analysis_mode === "LLM";
+      if (!dirty.current.has("location") && (authoritative || result.location?.trim())) setLocation(result.location ?? "");
+      if (!dirty.current.has("starts_at") && (authoritative || result.starts_at)) setStartsAt(result.starts_at ?? "");
+      if (!dirty.current.has("ends_at") && (authoritative || result.ends_at)) setEndsAt(result.ends_at ?? "");
+      setDetails((current) => {
+        const updated = { ...current };
+        for (const [name, value] of Object.entries(result.details!)) {
+          if (!dirty.current.has(`details.${name}`) && (authoritative || (value !== null && value !== ""))) updated[name] = value;
+        }
+        return updated;
+      });
+      setText(combined);
+      setCurrentPreview(result);
+      setAnswer("");
+      setErrors([]);
+      setRefineMessage("Your form is updated. Review the details before posting.");
+    } catch (error) {
+      setRefineError(error);
+    } finally {
+      setRefining(false);
+    }
+  }
   const detailField = (
     name: string,
     label: string,
@@ -146,28 +209,54 @@ export function CreatePost({
           </p>
         </div>
       </div>
-      {preview && (
+      {currentPreview && (
         <div className="notice mt-5">
           <p className="font-medium">
-            Preview mode: {preview.analysis_mode.toLowerCase()}
+            Preview mode: {currentPreview.analysis_mode.toLowerCase()}
           </p>
-          {preview.missing_fields.length > 0 && (
+          {questions.some((question) => question.required) && (
             <p className="mt-1">
               Please confirm:{" "}
-              {preview.missing_fields
-                .join(", ")
+              {questions.filter((question) => question.required).map((question) => question.field).join(", ")
                 .replaceAll("details.", "")
                 .replaceAll("_", " ")}
               .
             </p>
           )}
-          {preview.warnings.map((warning) => (
+          {currentPreview.analysis_mode === "HEURISTIC" && (
+            <p className="mt-1">Rule-based preview: useful when Gemini is unavailable. You can still fill the fields below.</p>
+          )}
+          {currentPreview.warnings.map((warning) => (
             <p key={warning} className="mt-1">
               {warning}
             </p>
           ))}
         </div>
       )}
+      {preview && questions.length > 0 && (
+        <section className="notice mt-5" aria-label="Missing details">
+          <h3 className="font-semibold">A few details to finish</h3>
+          <p className="mt-1 text-sm">I filled in what you provided. Answer these in a sentence, or edit the fields below.</p>
+          <ul className="mt-3 space-y-2">
+            {questions.map((question) => (
+              <li key={question.field}>
+                {question.question} <span className="text-xs text-stone-500">{question.required ? "Needed before posting" : "Helps find better matches"}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4">
+            <Field label="Add missing details" hint="For example: Tomorrow from 6 to 7 pm, in person at the Library.">
+              {(props) => <textarea {...props} rows={2} maxLength={4000} value={answer}
+                disabled={pending || refining} onChange={(event) => setAnswer(event.target.value)} />}
+            </Field>
+          </div>
+          <button type="button" className="button-primary mt-3" disabled={pending || refining || !answer.trim()} onClick={refine}>
+            {refining ? "Updating your form…" : "Fill in my form"}
+          </button>
+          {refineError !== null && <div className="mt-3"><ErrorState error={refineError} /></div>}
+        </section>
+      )}
+      {refineMessage && <p role="status" className="notice mt-4">{refineMessage}</p>}
       {errors.length > 0 && (
         <div className="error-panel mt-5" role="alert">
           Correct the highlighted fields before posting.
@@ -178,7 +267,7 @@ export function CreatePost({
           <ErrorState error={requestError} />
         </div>
       )}
-      <fieldset disabled={pending} className="mt-6 grid gap-5 md:grid-cols-2">
+      <fieldset disabled={pending || refining} className="mt-6 grid gap-5 md:grid-cols-2">
         <Field label="Category" error={fieldError("category")}>
           {(props) => (
             <select
@@ -188,6 +277,7 @@ export function CreatePost({
                 const next = event.target.value as Category;
                 setCategory(next);
                 setDetails(blankDetails(next));
+                for (const field of dirty.current) if (field.startsWith("details.")) dirty.current.delete(field);
                 if (
                   intent === "PARTNER" &&
                   ["RIDE", "RESTAURANT"].includes(next)
@@ -211,7 +301,7 @@ export function CreatePost({
             <select
               {...props}
               value={intent}
-              onChange={(event) => setIntent(event.target.value as Intent)}
+              onChange={(event) => { dirty.current.add("intent"); setIntent(event.target.value as Intent); }}
             >
               <option value="REQUEST">Request help / join</option>
               <option value="OFFER">Offer help / host</option>
@@ -229,7 +319,7 @@ export function CreatePost({
                 value={title}
                 maxLength={120}
                 placeholder="Give your connection a little context"
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={(event) => edit("title", setTitle, event.target.value)}
               />
             )}
           </Field>
@@ -243,7 +333,7 @@ export function CreatePost({
                 maxLength={4000}
                 rows={3}
                 placeholder="What would you like your campus community to know?"
-                onChange={(event) => setText(event.target.value)}
+                onChange={(event) => edit("text", setText, event.target.value)}
               />
             )}
           </Field>
@@ -328,7 +418,7 @@ export function CreatePost({
               {...props}
               value={location}
               placeholder="e.g. Library"
-              onChange={(event) => setLocation(event.target.value)}
+              onChange={(event) => edit("location", setLocation, event.target.value)}
             />
           )}
         </Field>
@@ -346,7 +436,7 @@ export function CreatePost({
               {...props}
               value={startsAt}
               placeholder="YYYY-MM-DDTHH:MM:SS±HH:MM"
-              onChange={(event) => setStartsAt(event.target.value)}
+              onChange={(event) => edit("starts_at", setStartsAt, event.target.value)}
             />
           )}
         </Field>
@@ -360,7 +450,7 @@ export function CreatePost({
               {...props}
               value={endsAt}
               placeholder="YYYY-MM-DDTHH:MM:SS±HH:MM"
-              onChange={(event) => setEndsAt(event.target.value)}
+              onChange={(event) => edit("ends_at", setEndsAt, event.target.value)}
             />
           )}
         </Field>
@@ -375,7 +465,7 @@ export function CreatePost({
         <p className="max-w-xs text-xs text-stone-500">
           This post is public within the local demo. Use synthetic details.
         </p>
-        <button className="button-primary" disabled={pending} type="submit">
+        <button className="button-primary" disabled={pending || refining} type="submit">
           {pending ? "Posting…" : "Confirm & post"}
           <ArrowRight size={16} />
         </button>
