@@ -267,3 +267,57 @@ def test_google_environment_aliases_are_secret_values(tmp_path, monkeypatch):
 def test_understanding_timeout_is_bounded(value):
     with pytest.raises(ValidationError):
         Settings(_env_file=None, ai_timeout_seconds=value)
+
+
+@pytest.mark.parametrize('text,start,end', [
+    ('SQL tutoring today at six pm', '2026-10-03T18:00:00-05:00', None),
+    ('SQL tutoring around six tonight', '2026-10-03T18:00:00-05:00', None),
+    ('SQL tutoring today at half past six pm', '2026-10-03T18:30:00-05:00', None),
+    ('SQL tutoring today at quarter to seven pm', '2026-10-03T18:45:00-05:00', None),
+    ('SQL tutoring tomorrow from six to seven pm', '2026-10-04T18:00:00-05:00', '2026-10-04T19:00:00-05:00'),
+    ('SQL tutoring tomorrow 6-7 pm', '2026-10-04T18:00:00-05:00', '2026-10-04T19:00:00-05:00'),
+])
+def test_gemini_word_times_and_ranges_survive_validation(gemini_settings, text, start, end):
+    body = extraction(starts_at=start, ends_at=end)
+    result = GeminiUnderstandingProvider(gemini_settings, opener=opener_for(response(body))).preview(request(text))
+    assert result.starts_at == datetime.fromisoformat(start)
+    assert result.ends_at == (datetime.fromisoformat(end) if end else None)
+
+
+def test_gemini_word_time_without_meridiem_and_non_clock_numbers_do_not_get_guessed(gemini_settings):
+    body = extraction(starts_at='2026-10-04T18:00:00-05:00')
+    provider = GeminiUnderstandingProvider(gemini_settings, opener=opener_for(response(body)))
+    assert provider.preview(request('SQL tutoring tomorrow around six')).starts_at is None
+    assert provider.preview(request('Two students need SQL tutoring tomorrow')).starts_at is None
+
+
+@pytest.mark.parametrize('text', ['SQL tomorrow 6-7', 'SQL tomorrow from six to seven'])
+def test_gemini_ranges_need_meridiem_when_not_specified(gemini_settings, text):
+    provider = GeminiUnderstandingProvider(gemini_settings, opener=opener_for(response(extraction(
+        starts_at='2026-10-04T18:00:00-05:00', ends_at='2026-10-04T19:00:00-05:00'))))
+    result = provider.preview(request(text))
+    assert result.starts_at is None and result.ends_at is None
+
+
+def test_iso_date_is_not_confused_with_availability_range(gemini_settings):
+    provider = GeminiUnderstandingProvider(gemini_settings, opener=opener_for(response(extraction(
+        starts_at='2026-10-03T18:00:00-05:00', ends_at='2026-10-03T19:00:00-05:00'))))
+    assert provider.preview(request('SQL tutoring on 2026-10-03 at 6 pm')).ends_at is None
+
+
+def test_gemini_new_defaults_fall_back_without_key_and_retry_provider_on_next_request(monkeypatch):
+    settings = Settings(_env_file=None, gemini_api_key='', openai_api_key='')
+    assert UnderstandingService(settings).preview(request()).analysis_mode == 'HEURISTIC'
+    calls = []
+
+    def post(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise GeminiUnavailable('offline')
+        return response()
+
+    monkeypatch.setattr(GeminiClient, 'post', post)
+    service = UnderstandingService(settings)
+    assert service.preview(request()).analysis_mode == 'HEURISTIC'
+    assert service.preview(request()).analysis_mode == 'LLM'
+    assert len(calls) == 2
