@@ -4,20 +4,20 @@ Unchecked boxes are planned work, not completed features. Source schedule assume
 
 ## Shared checkpoint 0 — contract
 - [x] Person 1 inspected the repository: documentation and fixtures only; no existing application code to reconcile. API interfaces unchanged.
-- [ ] Confirm MVP API, identity mode, branch names and database paths.
+- [x] MVP API unchanged; local synthetic demo identity, branch `AI-backend`, SQLite `backend/connecthub.db`.
 - [x] Person 1 reserved dedicated Study/Security page filenames for Person 2 (paths below).
 - [x] Load JSON fixtures in the frontend mock client; same public API methods in live mode.
 
 ## Person 2 — Rafi
-- [ ] P2-1: FastAPI app/config/CORS, SQLAlchemy/SQLite and seed command; /health and demo profiles.
-- [ ] P2-2: Pydantic category schemas, post create/list/get/status, standard errors and ownership checks.
-- [ ] P2-3: Connection create/list/transitions; duplicate checks and participant validation.
-- [ ] P2-4: AI service interfaces, classify/extract preview, manual override, time clarification, provider JSON validation and offline fallback.
-- [ ] P2-5: Embeddings and version metadata, candidate constraints, Study scoring, reasons and deterministic ordering.
-- [ ] P2-6: Ride/Food/Community matching behind the same service.
+- [x] P2-1: FastAPI app/config/CORS, SQLAlchemy/SQLite and seed command; /health and demo profiles.
+- [x] P2-2: Pydantic category schemas, post create/list/get/status, standard errors and ownership checks.
+- [x] P2-3: Connection create/list/transitions; duplicate checks and participant validation.
+- [x] P2-4: Understanding service interface, heuristic classify/extract preview, manual override, time clarification, provider JSON validation and offline fallback. Hosted provider adapter remains pending.
+- [ ] P2-5: Embeddings and version metadata remain pending. Candidate constraints, weighted heuristic Study scoring, reasons and deterministic ordering implemented.
+- [x] P2-6: Heuristic Ride/Food/Community matching behind the same service; rules recorded in ARCHITECTURE.md.
 - [ ] P2-7: Private security analyzer, evidence reasons, no URL fetching/logging; Security UI via shared components.
 - [ ] P2-8: Study page using shared client/cards and corrected extracted fields.
-- [ ] P2-9: Tests, edge cases, provider failures and backend integration fixes.
+- [x] P2-9: 113 backend tests for implemented routes, edge cases, provider failures and integration fixes. Live browser request → confirmed ride → matches → recipient acceptance verified; Security/semantic-provider checks await those features.
 
 ## Person 1
 - [x] P1-1: React/Vite/Tailwind foundation, dashboard/navigation and demo profile selector.

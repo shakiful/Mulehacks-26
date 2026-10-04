@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, JSON, String
+from sqlalchemy import CheckConstraint, ForeignKey, Index, JSON, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base, UTCDateTime, utcnow
@@ -42,3 +42,25 @@ class Post(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
     # Internal marker makes seeding repeatable without deleting user-created posts.
     seed_key: Mapped[str | None] = mapped_column(unique=True, nullable=True)
+
+
+class Connection(Base):
+    __tablename__ = 'connections'
+    __table_args__ = (
+        CheckConstraint("status IN ('PENDING','ACCEPTED','DECLINED','CANCELLED')"),
+        CheckConstraint('requester_id != receiver_id'),
+        CheckConstraint('source_post_id != target_post_id'),
+        Index('uq_active_connection_pair', 'pair_low', 'pair_high', unique=True,
+              sqlite_where=text("status IN ('PENDING','ACCEPTED')")),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    requester_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    receiver_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    source_post_id: Mapped[int] = mapped_column(ForeignKey('posts.id'))
+    target_post_id: Mapped[int] = mapped_column(ForeignKey('posts.id'))
+    pair_low: Mapped[int]
+    pair_high: Mapped[int]
+    status: Mapped[str] = mapped_column(String(10), default='PENDING')
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
