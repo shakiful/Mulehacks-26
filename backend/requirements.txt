@@ -1,0 +1,6 @@
+fastapi==0.142.2
+pydantic==2.13.5
+pydantic-settings==2.15.0
+SQLAlchemy==2.0.54
+uvicorn==0.54.0
+tzdata==2026.5
