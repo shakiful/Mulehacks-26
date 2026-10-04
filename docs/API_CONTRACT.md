@@ -1,0 +1,79 @@
+# API contract — proposed MVP v1
+
+Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps use ISO 8601 with a UTC offset. Every protected operation uses `X-Demo-User-Id` in local DEMO_MODE; never trust body user_id. Seed identities are synthetic. Health and demo-user listing require no header.
+
+## Shared types
+- Category: RIDE | STUDY | RESTAURANT | COMMUNITY. Understanding additionally supports CYBERSECURITY.
+- Intent: REQUEST | OFFER | PARTNER. PARTNER only applies to Study/Community.
+- Post status: OPEN | COMPLETED | CANCELLED.
+- Connection status: PENDING | ACCEPTED | DECLINED | CANCELLED.
+- Matching mode: SEMANTIC | HEURISTIC.
+
+## Endpoints
+| Method / path | Request | Successful response |
+|---|---|---|
+| GET /health | none | 200 `{ "status": "ok", "demo_mode": true }` |
+| GET /demo/users | none; demo only | 200 `{ "items": [{ "id": 1, "name": "Rafi (demo)" }] }` |
+| POST /understand | text, optional category_hint, reference_time, timezone | 200 preview below; no persistence |
+| POST /posts | confirmed post body below | 201 Post |
+| GET /posts | optional category, status (default OPEN), user_id; limit 1–100 (default 20), offset >=0 | 200 `{ "items": [Post], "total": 1, "limit": 20, "offset": 0 }` |
+| GET /posts/{post_id} | none | 200 Post |
+| PATCH /posts/{post_id} | `{ "status": "COMPLETED" }` (or CANCELLED) | 200 Post; author only |
+| POST /matches | `{ "post_id": 42, "limit": 5 }`; limit 1–20 | 200 ranked matches below; source author only |
+| POST /connections | `{ "source_post_id": 42, "target_post_id": 7 }` | 201 Connection; source author only |
+| GET /connections | optional status | 200 `{ "items": [Connection] }`; participant records only |
+| PATCH /connections/{connection_id} | `{ "status": "ACCEPTED" }` | 200 Connection; recipient accepts/declines PENDING, requester cancels PENDING |
+| POST /security/analyze | `{ "text": "Your university account expires today. Click https://ucm-login-example.xyz" }` | 200 risk response below; no public post/persistence |
+
+No `/posts/{category}` route: use `/posts?category=STUDY` to avoid collision with post ids. No `/analyze` alias: use `/security/analyze` everywhere.
+
+## Understanding
+Request:
+```json
+{"text":"I need help studying SQL joins tonight","reference_time":"2026-10-03T16:00:00-05:00","timezone":"America/Chicago","category_hint":null}
+```
+Response:
+```json
+{"category":"STUDY","intent":"REQUEST","title":"Help with SQL joins","text":"I need help studying SQL joins tonight","location":null,"starts_at":null,"ends_at":null,"details":{"course":"SQL","topic":"joins","skill_level":null,"mode":null},"missing_fields":[],"warnings":["Exact availability is unspecified; confirm it for better matches."],"analysis_mode":"LLM"}
+```
+analysis_mode is LLM or HEURISTIC. Required fields unresolved by extraction appear in missing_fields; frontend must prompt before saving. For CYBERSECURITY intent and details are null; route to security analysis. category_hint is optional; if given, it controls the category. If both time and date cannot be determined reliably, leave them null.
+
+## Create post
+```json
+{"category":"STUDY","intent":"REQUEST","title":"Help with SQL joins","text":"I need help studying SQL joins tonight","location":"Library","starts_at":"2026-10-03T18:00:00-05:00","ends_at":"2026-10-03T19:00:00-05:00","details":{"course":"SQL","topic":"joins","skill_level":"BEGINNER","mode":"IN_PERSON"}}
+```
+Required common: category, intent, title (1–120 chars), text (1–4000 chars), details. Optional common: location, starts_at, ends_at. End must be later than start; end requires start.
+
+Category details:
+- RIDE: origin and destination nonempty strings; seats integer >=1. starts_at required; intent REQUEST/OFFER only. Optional purpose string. No ends_at needed.
+- STUDY: course or topic nonempty (at least one). skill_level nullable BEGINNER/INTERMEDIATE/ADVANCED; mode nullable ONLINE/IN_PERSON. Availability uses common starts_at/ends_at.
+- RESTAURANT: restaurant or cuisine nonempty; activity_type DINING/GROUP_ORDER/TRIP; group_size integer >=1, meaning total desired group size, not a guaranteed remaining-seat count. starts_at required; intent REQUEST/OFFER only.
+- COMMUNITY: subcategory enum from PROJECT_SPEC.md; optional item or activity strings. Common text supplies the matching description.
+
+Post response includes submitted fields plus id, author `{ "id": 1, "name": "Rafi (demo)" }`, status OPEN, created_at and updated_at. Return all common optional fields explicitly as null when absent. Never return secrets or embeddings.
+
+## Match response
+```json
+{"post_id":42,"matching_mode":"SEMANTIC","matches":[{"post":{"id":7,"author":{"id":2,"name":"Sarah (demo)"},"category":"STUDY","intent":"OFFER","title":"Relational database tutoring","text":"I can help with relational databases and SQL joins","location":"Library","starts_at":"2026-10-03T18:00:00-05:00","ends_at":"2026-10-03T19:00:00-05:00","details":{"course":"Databases","topic":"SQL joins","skill_level":"ADVANCED","mode":"IN_PERSON"},"status":"OPEN","created_at":"2026-10-03T12:00:00Z","updated_at":"2026-10-03T12:00:00Z"},"score":89.4,"reasons":["Relevant SQL tutoring offer","Overlapping availability","Same meeting location"],"warnings":[]}]}
+```
+Fixture scores are illustrative mock values, not measured performance. No matches returns matches: []. Compatibility score is 0–100 with one decimal; no percentage-probability claims. No embedding/provider internals in response.
+
+## Connection lifecycle
+Connection:
+```json
+{"id":12,"requester_id":1,"receiver_id":2,"source_post_id":42,"target_post_id":7,"status":"PENDING","created_at":"2026-10-03T21:30:00Z","updated_at":"2026-10-03T21:30:00Z"}
+```
+Validate both posts OPEN, same category, different authors and matching hard constraints. Reject duplicate PENDING/ACCEPTED pairs with 409. Derive recipient from target post. Acceptance records interest only; it does not reserve a seat, place an order or create a payment. Terminal connections cannot transition further in MVP. Users can complete their posts separately.
+
+## Security result
+```json
+{"risk_level":"HIGH","summary":"The message has warning signs consistent with phishing.","reasons":[{"code":"URGENCY","description":"Pressures you to act immediately"},{"code":"LOGIN_LURE","description":"Directs you to an unverified login-like domain"}],"recommendation":"Do not enter credentials; verify through a known official university channel.","limitations":"Text-based risk assessment; no link was visited and safety is not guaranteed.","analysis_mode":"HEURISTIC"}
+```
+Do not infer ownership of a domain without evidence. LOW means fewer detected signals, not safe. Limit text to 8000 characters. Do not store submitted content or fetch URLs.
+
+## Errors
+All errors, including validation and route failures, share:
+```json
+{"error":{"code":"VALIDATION_ERROR","message":"Correct the highlighted fields.","details":[{"field":"details.seats","message":"Must be at least 1"}]}}
+```
+400 invalid operation, 401 missing/unknown demo identity, 403 wrong owner/participant, 404 missing resource or demo-only endpoint disabled, 409 duplicate/conflicting state, 422 validation, 503 provider unavailable when fallback is disabled. Hide stack traces and provider secrets. Install exception handlers so FastAPI validation errors use this envelope.

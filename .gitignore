@@ -1,0 +1,20 @@
+# Merge into an existing .gitignore rather than replacing it.
+.env
+.env.*
+!.env.example
+!.env.*.example
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store

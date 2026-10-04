@@ -1,122 +1,78 @@
 # Mulehacks-26
 
-## ConnectHub backend
+## ConnectHub
 
-Implemented: FastAPI, SQLite/SQLAlchemy, synthetic demo users, validated posts
-for Ride/Study/Food/Community, ownership checks, CORS and standard API errors.
-AI understanding, matching, connections and security analysis are later tasks.
-This slice changes only backend files and this README; frontend belongs to Person 1.
+An AI-powered student connection platform for a hackathon themed **Connection**.
+Students describe a need; ConnectHub extracts details and finds compatible people or resources. Suspicious messages go to a private risk analyzer.
 
-Requires Python 3.11+ (tested on 3.12). Run from the repository root:
+**Status:** React/Vite/Tailwind frontend implemented with synthetic mock responses. Backend implementation and live integration belong to Person 2. Study and Security have reserved page files; the private analyzer is not implemented in the frontend foundation.
+
+## Shared context
+- [Product scope](docs/PROJECT_SPEC.md)
+- [Architecture and data](docs/ARCHITECTURE.md)
+- [API contract](docs/API_CONTRACT.md)
+- [Task ownership](docs/TASKS.md)
+- [Two-laptop setup and Git workflow](docs/TEAM_SETUP.md)
+- [Demo and acceptance checks](docs/DEMO_AND_ACCEPTANCE.md)
+- [Person 2 Codex prompt](docs/prompts/PERSON2.md)
+- [Person 1 Codex prompt](docs/prompts/PERSON1.md)
+- [Original planning text](docs/SOURCE_PLAN.md)
+
+## Frontend local development
+
+Install Node.js 22.12 or newer (Node 22.20 was used for validation). From the repository root:
 
 ```bash
-python -m venv backend/.venv
+cd frontend
+npm ci
+# Optional: copy .env.example to .env.local to customize public settings.
+npm run dev
 ```
 
-Windows PowerShell:
+Open http://localhost:5173. Mock mode is the default and requires no backend or provider credentials. `npm run build` checks TypeScript and creates `frontend/dist`; `npm run preview` serves that build. `npm run check` runs TypeScript and frontend behavior checks; `npm test` runs the tests alone. The lockfile pins the dependency versions.
 
-```powershell
-.\backend\.venv\Scripts\Activate.ps1
-python -m pip install -r backend/requirements-dev.txt
-Copy-Item backend/.env.example backend/.env
+The app includes dashboard navigation, five category shortcuts, a demo profile selector, editable natural-language previews, shared category forms/cards, Ride/Food/Community boards, matches, a connection inbox and post completion. Use the sidebar **Demo responses** selector to exercise Normal, Empty and Error states. Loading states run on each request. On narrow screens the navigation scrolls horizontally; demo response controls can also be exercised in tests or at a desktop width.
+
+Mock data comes directly from `docs/fixtures/api_examples.json`. Dates and scores are fixed illustrative examples. Changes live in memory and reset on page reload. New posts intentionally return empty matches: the browser does not implement the backend matching engine. Mock previews recognize a few scripted keywords and reuse the exact SQL example's details; all other required facts and all dates require manual confirmation. No provider runs in the browser.
+
+To demonstrate connections: select **Rafi (demo)**, open **My posts**, find matches for the SQL fixture post #42, and request Sarah's tutoring offer. Select **Sarah (demo)**, open **Connections**, and accept or decline. Acceptance records interest only. It does not reserve seats, place orders, or close posts. Each author can mark their own post completed.
+
+Person 2 owns `frontend/src/pages/StudyPage.tsx` (`/study`) and `frontend/src/pages/SecurityPage.tsx` (`/security`). They should use `useApi()` from the shared context, the existing form/card components, and `useResource()` for request states. The Security page is a placeholder; security-classified previews route there without publishing the text. The mock security API returns a clearly labeled canned risk response, never an assessment of the submitted content.
+
+## Switch to the real backend
+
+Create `frontend/.env.local`:
+
+```dotenv
+VITE_USE_MOCKS=false
+VITE_API_BASE_URL=http://localhost:8000/api
+```
+
+Restart Vite after changing these values. One typed API interface covers both adapters; no page changes are required. The live adapter follows `docs/API_CONTRACT.md`, sends `X-Demo-User-Id` on protected operations, and uses the standard error envelope for form feedback. Only public configuration belongs in VITE variables.
+
+Person 2 must supply the contracted endpoints, seed the demo identities, and allow `http://localhost:5173` in backend CORS, including the `X-Demo-User-Id` header. Validate preview → corrected post → ranked matches → recipient acceptance against the live service, then implement Study and the private Security analyzer in the reserved files. Live matching, backend authorization, and private analyzer behavior have not yet been verified. Fixtures remain unchanged and there are no API interface changes in this frontend implementation.
+
+Validated on Node 22.20: `npm run check` (19 passing tests) and `npm run build`. Tests cover the live adapter's exact routes/headers/bodies and standard errors, fixture mock ownership and connection transitions, post validation, profile switching, loading/error/empty states, editable previews, and private Security routing. Headless Chrome checks at 1440px and 390px widths confirmed the responsive dashboard. Backend acceptance checks remain pending.
+
+## Target backend local development
+Python backend: FastAPI + SQLAlchemy + SQLite. Frontend: React + Vite + Tailwind.
+
+After implementation, from the repository root:
+
+```bash
+python -m venv .venv
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r backend/requirements.txt
+# Copy .env.example to .env and choose local settings.
 python -m backend.app.seed
 python -m uvicorn backend.app.main:app --reload --port 8000
 ```
 
-macOS/Linux:
+Frontend: http://localhost:5173. Target backend: http://localhost:8000.
+API documentation after implementation: http://localhost:8000/docs.
+Vite reads frontend/.env.local; set `VITE_API_BASE_URL=http://localhost:8000/api` there. Only public configuration belongs in VITE variables.
 
-```bash
-source backend/.venv/bin/activate
-python -m pip install -r backend/requirements-dev.txt
-cp backend/.env.example backend/.env
-python -m backend.app.seed
-python -m uvicorn backend.app.main:app --reload --port 8000
-```
+Each laptop runs its own frontend, backend and seeded SQLite database. Git shares code and fixtures; it does not synchronize live database state. During the final demo, run both services on one chosen laptop. Hosting or a shared backend is optional later work.
 
-For server-only installs use `backend/requirements.txt`. For the exact tested
-dependency snapshot use `backend/requirements-lock.txt`. Preserve an existing
-local `.env` when updating. `backend/.env` is ignored by Git. A root `.env`, if
-present, overrides it; process environment overrides both. Keep credentials and
-SQLite files local. Each laptop uses its own database.
-
-| Configuration | Default / meaning |
-| --- | --- |
-| `DEMO_MODE` | `true`; synthetic local identity, not production authentication |
-| `DATABASE_URL` | SQLite file at `backend/connecthub.db`; explicit relative URLs resolve from the working directory |
-| `CORS_ORIGINS` | `http://localhost:5173`; comma-separated explicit frontend origins |
-| `DEMO_DATE` | Empty: today in `DEMO_TIMEZONE`; otherwise ISO date, e.g. `2026-10-03` |
-| `DEMO_TIMEZONE` | `America/Chicago`; IANA timezone for seed dates |
-
-Startup creates tables. Seed separately to add identities 1 Rafi, 2 Sarah,
-3 Alex, 4 Jamie (each labeled demo) and six synthetic posts: two Walmart rides,
-SQL tutoring, a Python partner, a food group and a calculator offer.
-Repeating the command adds no duplicates and preserves edited/user-created posts.
-Use `python -m backend.app.seed --refresh` after changing `DEMO_DATE` to reset
-only seed posts to that date and OPEN. Conflicting identity IDs stop the seed
-transaction without overwriting records.
-
-## Person 1 integration
-
-Base: `http://localhost:8000/api`. [Interactive API schemas](http://localhost:8000/docs).
-Set `VITE_API_BASE_URL=http://localhost:8000/api` and `VITE_USE_MOCKS=false` in
-`frontend/.env.local`. Keep server credentials out of VITE variables.
-Choose a profile from `/api/demo/users`; send `X-Demo-User-Id: 1` (or another
-listed ID) on every post request. Body `user_id`/`author` overrides are rejected.
-
-| Endpoint | Behavior |
-| --- | --- |
-| `GET /api/health` | Public `{ "status": "ok", "demo_mode": true }` |
-| `GET /api/demo/users` | Public `{ "items": [{ "id": 1, "name": "Rafi (demo)" }, ...] }` |
-| `POST /api/posts` | Confirmed category-specific body; 201 Post |
-| `GET /api/posts` | Optional category, status (default OPEN), user_id; limit 1–100 (default 20), offset >=0 |
-| `GET /api/posts/{id}` | Post visible to any selected demo profile |
-| `PATCH /api/posts/{id}` | Author sets COMPLETED/CANCELLED; already closed returns 409 |
-
-List shape: `{ "items": [...], "total": n, "limit": 20, "offset": 0 }`.
-Posts are ordered newest first, descending ID for ties. Post responses include
-author/status/timestamps and explicit null common optional fields. Input times
-require UTC offsets; returned times are UTC. There is no `/posts/{category}`
-endpoint; use category query filters.
-
-Validation: RIDE requires origin/destination/seats/time; STUDY requires course or
-topic; RESTAURANT requires restaurant or cuisine/activity_type/group_size/time;
-COMMUNITY requires its documented subcategory. PARTNER applies only to
-Study/Community. Title/text lengths are 1–120/1–4000. End requires start and
-must be later. Use Swagger UI for the complete category schemas.
-
-All errors use `{ "error": { "code": "VALIDATION_ERROR", "message": "...", "details": [{ "field": "details.seats", "message": "..." }] } }`.
-Handle 401 missing/unknown identity, 403 wrong owner, 404 missing resource,
-409 closed-post conflict and 422 validation. Use `details[].field` for form feedback.
-`DEMO_MODE=false` hides demo profiles (404) and rejects post access (401)
-until real authentication exists.
-
-PowerShell smoke check in a second activated terminal:
-
-```powershell
-Invoke-RestMethod http://localhost:8000/api/health
-Invoke-RestMethod http://localhost:8000/api/demo/users
-$headers = @{ 'X-Demo-User-Id' = '1' }
-$body = @{
-    category = 'STUDY'; intent = 'REQUEST'; title = 'Help with SQL joins'
-    text = 'Synthetic demo: I need help with SQL joins'
-    details = @{ course = 'SQL'; topic = 'joins' }
-} | ConvertTo-Json
-$post = Invoke-RestMethod http://localhost:8000/api/posts -Method Post -Headers $headers -ContentType 'application/json' -Body $body
-Invoke-RestMethod http://localhost:8000/api/posts -Headers $headers
-Invoke-RestMethod "http://localhost:8000/api/posts/$($post.id)" -Headers $headers
-Invoke-RestMethod "http://localhost:8000/api/posts/$($post.id)" -Method Patch -Headers $headers -ContentType 'application/json' -Body '{"status":"COMPLETED"}'
-```
-
-## Checks and contract source
-
-```bash
-python -m pytest backend/tests -q
-python -m pip check
-```
-
-Tests use temporary SQLite databases and synthetic data without AI/network calls.
-The project documents were read from `docs/connecthub-handoff`, since `main`
-currently contains only this README. The [API contract](https://github.com/shakiful/Mulehacks-26/blob/docs/connecthub-handoff/docs/API_CONTRACT.md)
-and [project specification](https://github.com/shakiful/Mulehacks-26/blob/docs/connecthub-handoff/docs/PROJECT_SPEC.md)
-are unchanged. Review/merge that handoff separately. AI preview, matching,
-connections, security and frontend implementation are outside this first slice.
+AI provider models are configurable. Select available models when implementing, then record tested names in .env.example and the README. A labeled offline heuristic fallback should keep the demo usable; it is not equivalent to semantic embeddings.
