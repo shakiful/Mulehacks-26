@@ -11,6 +11,7 @@ from .errors import install_handlers
 from .routes import router
 from .accounts import LoginThrottle, prepare_database, provision_accounts
 from .security.service import SecurityService
+from .rides import backfill_reservations
 
 
 def create_app(settings: Settings | None = None, *, embedding_provider=None, security_provider=None, dining_provider=None) -> FastAPI:
@@ -25,6 +26,8 @@ def create_app(settings: Settings | None = None, *, embedding_provider=None, sec
             prepare_database(engine)
             with app.state.session_factory.begin() as db:
                 provision_accounts(db, settings)
+            with app.state.session_factory() as db:
+                backfill_reservations(db)
             yield
         finally:
             engine.dispose()

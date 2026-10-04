@@ -82,6 +82,22 @@ class Connection(Base):
     status: Mapped[str] = mapped_column(String(10), default='PENDING')
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
+    reservation: Mapped['RideReservation | None'] = relationship(lazy='joined', back_populates='connection')
+
+    @property
+    def reserved_seats(self):
+        return self.reservation.seats if self.reservation is not None else 0
+
+
+class RideReservation(Base):
+    __tablename__ = 'ride_reservations'
+    __table_args__ = (CheckConstraint('seats >= 1'),)
+
+    connection_id: Mapped[int] = mapped_column(ForeignKey('connections.id'), primary_key=True)
+    request_post_id: Mapped[int] = mapped_column(ForeignKey('posts.id'), unique=True)
+    offer_post_id: Mapped[int] = mapped_column(ForeignKey('posts.id'), index=True)
+    seats: Mapped[int]
+    connection: Mapped[Connection] = relationship(back_populates='reservation')
 
 
 class PostEmbedding(Base):

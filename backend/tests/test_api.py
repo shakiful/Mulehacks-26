@@ -32,7 +32,7 @@ def test_create_get_response_and_utc_roundtrip(client, headers, study):
     post = response.json()
     assert set(post) == {
         'id', 'author', 'category', 'intent', 'title', 'text', 'location', 'starts_at',
-        'ends_at', 'details', 'status', 'created_at', 'updated_at',
+        'ends_at', 'details', 'status', 'created_at', 'updated_at', 'ride_availability',
     }
     assert post['author'] == {'id': 1, 'name': 'Rafi'}
     assert post['status'] == 'OPEN'
@@ -54,6 +54,9 @@ def test_create_get_response_and_utc_roundtrip(client, headers, study):
 ])
 def test_all_categories_and_optional_nulls(client, headers, category, intent, details, timed):
     body = {'category': category, 'intent': intent, 'details': details, 'title': 'Demo', 'text': 'Synthetic request'}
+    if category == 'RIDE':
+        body['details'] = {**details, 'origin_point': {'lat': 38.7625, 'lng': -93.7395},
+                           'destination_point': {'lat': 38.7905, 'lng': -93.7390}}
     if timed:
         body['starts_at'] = '2026-10-03T18:00:00Z'
     response = client.post('/api/posts', json=body, headers=headers)

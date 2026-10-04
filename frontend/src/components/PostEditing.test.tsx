@@ -6,21 +6,25 @@ import { ApiError } from "../api/errors";
 import type { CreatePostInput, Post } from "../api/types";
 import { ApiProvider } from "../context/ApiContext";
 import { CreatePost } from "./CreatePost";
+vi.mock("./RideRoutePicker", () => import("../test/MockRideRoutePicker"));
+const places = vi.hoisted(() => ({ suggest: vi.fn() }));
+vi.mock('../lib/places', async (original) => ({ ...await original<typeof import('../lib/places')>(), suggestPlaces: places.suggest }));
 
 const common = { title: "Synthetic original post", text: "Synthetic editable description",
   location: "Library", starts_at: "2026-10-03T18:00:00-05:00", ends_at: "2026-10-03T19:00:00-05:00" };
 const cases: [string, CreatePostInput, string, string][] = [
-  ["Ride", { ...common, category: "RIDE", intent: "REQUEST", details: { origin: "UCM", destination: "Walmart", seats: 1, purpose: null } }, "To", "Target"],
+  ["Ride", { ...common, category: "RIDE", intent: "REQUEST", details: { origin: "UCM", destination: "Walmart", seats: 1, purpose: null,
+    origin_point: { lat: 38.7625, lng: -93.7395 }, destination_point: { lat: 38.7905, lng: -93.7390 } } }, "To", "Target"],
   ["Study", { ...common, category: "STUDY", intent: "PARTNER", details: { course: "SQL", topic: "joins", mode: "IN_PERSON", skill_level: "BEGINNER" } }, "Topic", "indexes"],
   ["Food", { ...common, category: "RESTAURANT", intent: "OFFER", details: { restaurant: "Example diner", cuisine: null, activity_type: "DINING", group_size: 2 } }, "Restaurant", "Campus cafe"],
   ["Community", { ...common, category: "COMMUNITY", intent: "OFFER", details: { subcategory: "BORROW_LEND", item: "Calculator", activity: null } }, "Item (optional)", "Scientific calculator"],
 ];
 
-function setup(input: CreatePostInput) {
+function setup(input: CreatePostInput, ride_availability?: Post['ride_availability']) {
   const api = createMockApi({ initialUser: { id: 1, name: "Rafi", username: "rafi" }, delayMs: 0 });
   const editPost = vi.fn(api.editPost), createPost = vi.fn(api.createPost), onCreated = vi.fn();
   const post = { ...input, id: 42, author: { id: 1, name: "Rafi" }, status: "OPEN",
-    created_at: "2026-10-03T12:00:00Z", updated_at: "2026-10-03T12:00:00Z" } as Post;
+    created_at: "2026-10-03T12:00:00Z", updated_at: "2026-10-03T12:00:00Z", ride_availability } as Post;
   editPost.mockResolvedValue(post);
   render(<ApiProvider client={{ ...api, editPost, createPost }}>
     <CreatePost initialPost={post} onCreated={onCreated} onCancel={vi.fn()} />
@@ -29,6 +33,16 @@ function setup(input: CreatePostInput) {
 }
 
 describe("saved post editor", () => {
+  it('protects accepted passengers by locking the route fields and optional map', async () => {
+    const input = { ...cases[0][1], intent: 'OFFER', details: { ...cases[0][1].details, seats: 4 } } as CreatePostInput;
+    const { user, editPost } = setup(input, { total_seats: 4, reserved_seats: 1, remaining_seats: 3 });
+    expect(screen.getByRole('combobox', { name: 'From' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'To' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Show map (optional)' }));
+    expect(await screen.findByRole('button', { name: 'Select From point' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(editPost).toHaveBeenCalledWith(42, expect.objectContaining({ details: input.details }));
+  });
   it.each(cases)("prefills and saves %s details without creating another post", async (_name, input, label, value) => {
     const { user, editPost, createPost, onCreated } = setup(input);
     expect(screen.getByRole("textbox", { name: "Post title" })).toHaveValue(input.title);
@@ -38,9 +52,14 @@ describe("saved post editor", () => {
     const required = ["RIDE", "RESTAURANT"].includes(input.category);
     expect(screen.getByLabelText(`Start date${required ? "" : " (optional)"}`)).toHaveValue("2026-10-03");
     expect(screen.getByLabelText(`Start time${required ? "" : " (optional)"}`)).toHaveValue("18:00");
-    const field = screen.getByRole("textbox", { name: label });
+    if (input.category === 'RIDE') {
+      vi.stubEnv('VITE_MAPTILER_API_KEY', 'synthetic');
+      places.suggest.mockResolvedValue([{ id: 'target', label: value, point: { lat: 38.8, lng: -93.73 } }]);
+    }
+    const field = screen.getByRole(input.category === 'RIDE' ? 'combobox' : 'textbox', { name: label });
     await user.clear(field);
     await user.type(field, value);
+    if (input.category === 'RIDE') await user.click(await screen.findByRole('option', { name: value }));
     await user.clear(screen.getByRole("textbox", { name: "Location (optional)" }));
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(editPost).toHaveBeenCalledWith(42, expect.objectContaining({

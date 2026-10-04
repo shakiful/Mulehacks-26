@@ -59,8 +59,9 @@ export function ConnectionsPage() {
         </div>
       </div>
       <p className="notice mb-6">
-        Acceptance records interest only. Each person can complete their post
-        separately.
+        Accepting a Ride connection reserves the requested seats and completes
+        the passenger's request. The driver stays open until all seats are reserved
+        or they mark the offer filled. Other connections record interest.
       </p>
       {error !== null && (
         <div className="mb-5">
@@ -100,6 +101,7 @@ export function ConnectionsPage() {
                     {new Date(connection.created_at).toLocaleDateString()}
                   </p>
                 </div>
+                {connection.reserved_seats > 0 && <p className="text-sm font-medium">{connection.reserved_seats} seat(s) reserved</p>}
                 <span className="mode-tag">
                   {connection.status.toLowerCase()}
                 </span>

@@ -7,7 +7,7 @@ Seed ride offers to Walmart at 17:45 and 18:15 with enough seats, a SQL/relation
 ## Two-minute demo
 1. Rafi requests a UCM → Walmart ride at 18:00. Confirm extraction and see compatible offered rides with reasons.
 2. Request help with SQL joins; show relational-database tutor and explain semantic ranking.
-3. Send a connection request; log out, sign in as Afsana and accept it. Show acceptance as interest, with no seat-reservation claim.
+3. Review valid From/To locations, send a ride connection request, log out and sign in as Afsana to accept. Show the reserved seat and remaining capacity. The offer stays OPEN until full or Mark filled. Study/Food/Community acceptance records interest.
 4. Paste a synthetic university-account-expiry message with a login-like URL. Show evidence-based HIGH risk assessment and its limitations.
 
 ## Required checks after implementation
@@ -23,6 +23,8 @@ Seed ride offers to Walmart at 17:45 and 18:15 with enough seats, a SQL/relation
 - Security analysis never visits submitted links, persists submitted messages or returns secrets; LOW is not labeled safe.
 - Provider timeout/malformed output has a tested fallback or standard 503.
 - UI works against real API as well as fixtures; loading/error/empty states behave correctly.
+- Ride forms hide the map by default. Type three or more characters into From/To and pause; select a named place/address suggestion with mouse or arrow keys/Enter. Both valid points populate without displaying degrees. Editing a selected name removes its old point and mile summary until another result is chosen. Enter never publishes the post. Empty/error/no-key states support retry or Show map (optional); its satellite/street/OpenFreeMap behavior remains available. Old numeric labels are hidden, and accepted-passenger routes are locked. Delayed/aborted responses never restore an old location.
+- Enter “I need a ride from UCM to Walmart tonight at 6 pm for one person.” With Gemini and MapTiler configured, verify LLM preview, both automatic address names/pins and the straight-line miles summary without map clicks. Include an explicit city for a distant destination; ambiguous branches require a choice and unspecified home/current position remain unresolved. A changed sentence follow-up must replace an automatic destination pin, while manual pins/names survive late responses. Matching reasons and mock fixtures show miles; the original five-km exclusion still applies.
 - Calendar/time controls accept October 4, 2026 at 10:00 PM campus time, persist the equivalent UTC instant, and reload as the same campus date/time. Partial date/time entries, invalid end ordering and daylight-saving ambiguity require correction or clarification. Same-route rides from different signed-in accounts at the selected instant match when capacity is sufficient.
 - Backend tests pass and frontend production build passes. Record actual commands in README once code exists.
 

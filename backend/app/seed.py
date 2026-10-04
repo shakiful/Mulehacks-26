@@ -8,9 +8,14 @@ from sqlalchemy import select
 
 from .config import Settings
 from .database import make_engine, session_factory
-from .models import Post
+from .models import Connection, Post
 from .accounts import prepare_database, provision_accounts
 from .schemas import PostCreate
+
+# Explicit synthetic points; no user location is inferred.
+DEMO_ROUTE = dict(origin_point={'lat': 38.7625, 'lng': -93.7395},
+                  destination_point={'lat': 38.7905, 'lng': -93.7390})
+
 
 def seed(settings: Settings, *, refresh: bool = False, reset_passwords: bool = False) -> dict:
     zone = ZoneInfo(settings.seed_timezone)
@@ -22,10 +27,10 @@ def seed(settings: Settings, *, refresh: bool = False, reset_passwords: bool = F
     rows = [
         ('ride-sarah', 2, dict(category='RIDE', intent='OFFER', title='Walmart ride (synthetic demo)',
             text='Synthetic demo: offering a UCM to Walmart grocery ride.', starts_at=at(17, 45),
-            details=dict(origin='UCM', destination='Walmart', seats=3, purpose='groceries'))),
+            details=dict(origin='UCM', destination='Walmart', seats=3, purpose='groceries', **DEMO_ROUTE))),
         ('ride-alex', 2, dict(category='RIDE', intent='OFFER', title='Later Walmart ride (synthetic demo)',
             text='Synthetic demo: offering a UCM to Walmart ride at 18:15.', starts_at=at(18, 15),
-            details=dict(origin='UCM', destination='Walmart', seats=2))),
+            details=dict(origin='UCM', destination='Walmart', seats=2, **DEMO_ROUTE))),
         ('sql-tutor', 2, dict(category='STUDY', intent='OFFER', title='Relational database tutoring (synthetic demo)',
             text='Synthetic demo: I can help with relational databases and SQL joins.', location='Library',
             starts_at=at(18), ends_at=at(19),
@@ -54,6 +59,14 @@ def seed(settings: Settings, *, refresh: bool = False, reset_passwords: bool = F
                 if existing is None:
                     db.add(Post(user_id=author, seed_key=key, **values))
                     created += 1
+                elif existing.category == 'RIDE':
+                    existing.details = {**DEMO_ROUTE, **existing.details}
+                    occupied = db.scalar(select(Connection.id).where(Connection.status == 'ACCEPTED',
+                        (Connection.source_post_id == existing.id) | (Connection.target_post_id == existing.id)))
+                    if refresh and occupied is None:
+                        for field, value in values.items():
+                            setattr(existing, field, value)
+                        existing.status = 'OPEN'
                 elif refresh:
                     for field, value in values.items():
                         setattr(existing, field, value)

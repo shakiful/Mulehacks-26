@@ -8,12 +8,13 @@ from fastapi.testclient import TestClient
 from backend.app.main import create_app
 from backend.app.models import PostEmbedding
 from backend.app.seed import seed
+from backend.app.seed import DEMO_ROUTE
 from backend.tests.test_api import assert_error
 from backend.tests.test_embeddings import FakeProvider
 
 
 CASES = [
-    ('RIDE', {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1}, {'seats': 2}),
+    ('RIDE', {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1, **DEMO_ROUTE}, {'seats': 2}),
     ('STUDY', {'course': 'SQL', 'topic': 'joins', 'mode': 'ONLINE'}, {'topic': 'indexes'}),
     ('RESTAURANT', {'restaurant': 'Example diner', 'activity_type': 'DINING', 'group_size': 2}, {'group_size': 3}),
     ('COMMUNITY', {'subcategory': 'BORROW_LEND', 'item': 'Calculator'}, {'item': 'Scientific calculator'}),
@@ -96,11 +97,12 @@ def test_edit_keeps_existing_connection_records(client, headers, study, status):
 def test_ride_matching_uses_edited_route(client, headers):
     body = {'category': 'RIDE', 'intent': 'REQUEST', 'title': 'Synthetic Walmart ride',
             'text': 'Synthetic ride', 'starts_at': '2026-10-03T18:00:00-05:00',
-            'details': {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1}}
+            'details': {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1, **DEMO_ROUTE}}
     source = client.post('/api/posts', json=body, headers=headers).json()
     request = {'post_id': source['id']}
     assert client.post('/api/matches', json=request, headers=headers).json()['matches']
     body['details']['destination'] = 'Airport'
+    body['details']['destination_point'] = {'lat': 39.0, 'lng': -93.7390}
     assert client.put(f"/api/posts/{source['id']}", json=body, headers=headers).status_code == 200
     assert client.post('/api/matches', json=request, headers=headers).json()['matches'] == []
 
