@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from .config import Settings
 from .database import make_engine, session_factory
-from .models import Connection, Post
+from .models import Connection, Post, PostJoin
 from .accounts import prepare_database, provision_accounts
 from .schemas import PostCreate
 
@@ -63,7 +63,8 @@ def seed(settings: Settings, *, refresh: bool = False, reset_passwords: bool = F
                     existing.details = {**DEMO_ROUTE, **existing.details}
                     occupied = db.scalar(select(Connection.id).where(Connection.status == 'ACCEPTED',
                         (Connection.source_post_id == existing.id) | (Connection.target_post_id == existing.id)))
-                    if refresh and occupied is None:
+                    joined = db.scalar(select(PostJoin.id).where(PostJoin.status == 'ACCEPTED', PostJoin.post_id == existing.id))
+                    if refresh and occupied is None and joined is None:
                         for field, value in values.items():
                             setattr(existing, field, value)
                         existing.status = 'OPEN'

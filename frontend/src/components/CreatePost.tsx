@@ -28,6 +28,7 @@ export function CreatePost({
   category = "RIDE",
   preview,
   previewContext,
+  lockCategory = false,
   initialPost,
   onCancel,
   onCreated,
@@ -35,6 +36,7 @@ export function CreatePost({
   category?: Category;
   preview?: Understanding;
   previewContext?: { reference_time: string; timezone: string };
+  lockCategory?: boolean;
   initialPost?: Post;
   onCancel?: () => void;
   onCreated: (post: Post) => void;
@@ -358,7 +360,7 @@ export function CreatePost({
             <select
               {...props}
               value={selectedCategory}
-              disabled={Boolean(initialPost)}
+              disabled={Boolean(initialPost) || lockCategory}
               onChange={(event) => {
                 const next = event.target.value as Category;
                 setCategory(next);

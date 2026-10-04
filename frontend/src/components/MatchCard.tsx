@@ -1,6 +1,7 @@
 import { Check, Link2 } from "lucide-react";
 import type { Match, MatchingMode } from "../api/types";
 import { PostCard } from "./PostCard";
+import { Link } from "react-router-dom";
 
 export function MatchCard({
   match,
@@ -9,6 +10,7 @@ export function MatchCard({
   onConnect,
   pending,
   connected,
+  messageId,
 }: {
   match: Match;
   mode: MatchingMode;
@@ -16,6 +18,7 @@ export function MatchCard({
   onConnect: () => void;
   pending?: boolean;
   connected?: boolean;
+  messageId?: number;
 }) {
   return (
     <div className="match-card">
@@ -52,7 +55,7 @@ export function MatchCard({
             fit between posts.
           </p>
         </div>
-        <button
+        {messageId ? <Link className="button-primary mt-2 w-full" to={`/messages/connection/${messageId}`}>Message</Link> : <button
           className="button-primary mt-2 w-full"
           disabled={pending || connected}
           onClick={onConnect}
@@ -63,7 +66,7 @@ export function MatchCard({
             : pending
               ? "Sending…"
               : "Request connection"}
-        </button>
+        </button>}
       </PostCard>
     </div>
   );

@@ -320,6 +320,95 @@ class ConnectionList(BaseModel):
     items: list[ConnectionResponse]
 
 
+class JoinInput(InputModel):
+    seats: PositiveInt | None = None
+
+
+class JoinResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    post: PostResponse
+    requester: Author
+    receiver: Author
+    category: Category
+    post_intent: Intent
+    status: ConnectionStatus
+    requested_seats: int
+    reserved_seats: int
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+
+class JoinList(BaseModel):
+    items: list[JoinResponse]
+
+
+class MessageInput(InputModel):
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+
+
+class MessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    connection_id: int | None
+    join_id: int | None
+    sender: Author
+    text: str
+    created_at: AwareDatetime
+
+
+class MessageList(BaseModel):
+    items: list[MessageResponse]
+    has_more: bool
+
+
+NotificationKind = Literal['NEW_MESSAGE', 'JOIN_REQUEST', 'JOIN_ACCEPTED', 'CONNECTION_REQUEST', 'CONNECTION_ACCEPTED']
+
+
+class NotificationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    kind: NotificationKind
+    actor: Author
+    post_title: str
+    connection_id: int | None
+    join_id: int | None
+    message_id: int | None
+    created_at: AwareDatetime
+    read_at: AwareDatetime | None
+
+
+class NotificationList(BaseModel):
+    items: list[NotificationResponse]
+    unread_count: int
+    has_more: bool
+
+
+class NotificationRead(InputModel):
+    read: Annotated[bool, Field(strict=True)]
+
+    @field_validator('read')
+    @classmethod
+    def read_only(cls, value):
+        if value is not True:
+            raise ValueError('Only marking a notification read is supported')
+        return value
+
+
+class NotificationReadThrough(InputModel):
+    through_id: PositiveInt
+
+
+class NotificationThreadRead(InputModel):
+    kind: Literal['join', 'connection']
+    thread_id: PositiveInt
+    through_message_id: PositiveInt | None = None
+
+
+class UnreadCount(BaseModel):
+    unread_count: int
+
+
 class SecurityInput(InputModel):
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=8000)]
 

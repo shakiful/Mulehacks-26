@@ -95,12 +95,15 @@ export function MatchesPage() {
               mode={data.matches.matching_mode}
               isMock={isMock}
               pending={pending === match.post.id}
+              messageId={data.connections.items.find((c) => c.status === "ACCEPTED" &&
+                ((c.source_post_id === postId && c.target_post_id === match.post.id) ||
+                 (c.target_post_id === postId && c.source_post_id === match.post.id)))?.id}
               connected={
                 sent.includes(match.post.id) ||
                 data.connections.items.some(
                   (connection) =>
-                    connection.source_post_id === postId &&
-                    connection.target_post_id === match.post.id &&
+                    ((connection.source_post_id === postId && connection.target_post_id === match.post.id) ||
+                     (connection.target_post_id === postId && connection.source_post_id === match.post.id)) &&
                     ["PENDING", "ACCEPTED"].includes(connection.status),
                 )
               }
