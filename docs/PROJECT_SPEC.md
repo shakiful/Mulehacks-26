@@ -26,7 +26,7 @@ Students have needs and useful skills but struggle to discover compatible people
 | Cybersecurity | Private pasted-message/URL text assessment with LOW/MEDIUM/HIGH risk, reasons, actionable guidance and explicit uncertainty. |
 
 ## Interface
-Home has a natural-language input and five category shortcuts. Shared cards show category, summary, public display name, structured details and compatibility score with reasons. Forms expose editable extracted values. Include loading, empty, clarification-needed and error states. Show scoring mode so users can distinguish semantic from heuristic results.
+Home has a natural-language input and four category shortcuts: Ride, Study, Food and Community. Security has no sidebar entry or homepage shortcut; the private analyzer remains accessible through cybersecurity previews and chat AI review. Shared cards show category, summary, public display name, structured details and compatibility score with reasons. Forms expose editable extracted values. Include loading, empty, clarification-needed and error states. Show scoring mode so users can distinguish semantic from heuristic results.
 
 Study/Security pages are Person 2's feature responsibility; Person 1 supplies shared layout and components. Decide page filenames before either person edits shared frontend files.
 

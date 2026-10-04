@@ -3,7 +3,6 @@ import {
   BookOpen,
   CarFront,
   HeartHandshake,
-  ShieldCheck,
   Utensils,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -35,9 +34,9 @@ export function DashboardPage() {
       <section className="mt-10">
         <div className="section-heading">
           <h2>Find your kind of connection</h2>
-          <span>Five ways to feel more connected</span>
+          <span>Four ways to feel more connected</span>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
           <CategoryCard
             title="Ride Connect"
             description="Share the journey."
@@ -65,13 +64,6 @@ export function DashboardPage() {
             to="/community"
             icon={HeartHandshake}
             color="#e5ede6"
-          />
-          <CategoryCard
-            title="Security"
-            description="Pause. Check. Protect."
-            to="/security"
-            icon={ShieldCheck}
-            color="#e7edf0"
           />
         </div>
       </section>

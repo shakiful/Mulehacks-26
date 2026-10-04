@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Link2,
   ListChecks,
-  ShieldCheck,
   Utensils,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
@@ -22,7 +21,6 @@ const navigation = [
   { to: "/study", label: "Study Connect", icon: BookOpen },
   { to: "/food", label: "Food Connect", icon: Utensils },
   { to: "/community", label: "Community", icon: HeartHandshake },
-  { to: "/security", label: "Security", icon: ShieldCheck },
 ];
 export function Layout() {
   const { user, userId, signOut, isMock, scenario, setScenario } = useApi();
