@@ -22,6 +22,7 @@ export function DashboardPage() {
   const [text, setText] = useState("");
   const [hint, setHint] = useState("");
   const [preview, setPreview] = useState<Understanding | null>(null);
+  const [previewContext, setPreviewContext] = useState<{ reference_time: string; timezone: string }>();
   const [error, setError] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
   async function understand(event: FormEvent) {
@@ -29,12 +30,16 @@ export function DashboardPage() {
     setPending(true);
     setError(null);
     setPreview(null);
+    const context = {
+      reference_time: new Date().toISOString(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
+    setPreviewContext(context);
     try {
       const result = await api.understand({
         text,
         category_hint: hint ? (hint as UnderstandingCategory) : null,
-        reference_time: new Date().toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        ...context,
       });
       if (result.category === "CYBERSECURITY") {
         setText("");
@@ -157,6 +162,7 @@ export function DashboardPage() {
           <CreatePost
             key={JSON.stringify(preview)}
             preview={preview}
+            previewContext={previewContext}
             onCreated={(post) => navigate(`/posts/${post.id}/matches`)}
           />
         </section>

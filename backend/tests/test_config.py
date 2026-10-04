@@ -30,3 +30,12 @@ def test_local_configuration_and_environment_override(tmp_path, monkeypatch):
 def test_invalid_config_is_rejected(values):
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **values)
+
+
+def test_gemini_is_primary_with_automatic_fallback_and_provider_specific_models():
+    settings = Settings(_env_file=None, gemini_api_key='', openai_api_key='')
+    assert settings.ai_provider == settings.embedding_provider == 'gemini'
+    assert settings.ai_fallback_enabled is True
+    assert settings.embedding_model == 'gemini-embedding-001' and settings.embedding_dimensions == 768
+    openai = Settings(_env_file=None, embedding_provider='openai')
+    assert openai.embedding_model == 'text-embedding-3-small' and openai.embedding_dimensions == 1536

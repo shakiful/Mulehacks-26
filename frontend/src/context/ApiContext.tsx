@@ -31,7 +31,7 @@ export function ApiProvider({
   const [scenario, setScenarioState] = useState<MockScenario>("normal");
   const userRef = useRef(userId);
   const scenarioRef = useRef(scenario);
-  const isMock = mockMode ?? import.meta.env.VITE_USE_MOCKS !== "false";
+  const isMock = mockMode ?? import.meta.env.VITE_USE_MOCKS === "true";
   const [api] = useState(
     () =>
       client ??
