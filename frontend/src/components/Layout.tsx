@@ -42,12 +42,16 @@ export function Layout() {
       <aside className="sidebar">
         <NavLink to="/" className="brand">
           <span className="brand-mark">
-            <Link2 size={23} strokeWidth={2.3} />
+            <img
+              src="/brand/ucm-mule.png"
+              alt="University of Central Missouri mule"
+              width={40}
+              height={40}
+            />
           </span>
-          connect<span>hub</span>
-          <span className="brand-dot">.</span>
+          <span className="brand-name">MuleCampusBuddy</span>
         </NavLink>
-        <p className="sidebar-label">A LITTLE MORE TOGETHER</p>
+        <p className="sidebar-label">One Campus- Every Connection!</p>
         <nav aria-label="Main navigation" className="nav-list">
           {navigation.map(({ to, label, icon: Icon }) => (
             <NavLink
@@ -115,7 +119,7 @@ export function Layout() {
       <div className="main-shell">
         <header className="topbar">
           <span className="topbar-breadcrumb">
-            Campus commons <span>/</span> ConnectHub
+            Campus commons <span>/</span> MuleCampusBuddy
           </span>
           <div className="profile-selector">
             <span className="avatar">{selected?.name.charAt(0) ?? "?"}</span>
@@ -166,7 +170,7 @@ export function Layout() {
           )}
         </main>
         <footer className="footer">
-          <span>ConnectHub · MuleHacks 2026</span>
+          <span>MuleCampusBuddy · MuleHacks 2026</span>
           <span>Small asks. Shared possibilities.</span>
         </footer>
       </div>

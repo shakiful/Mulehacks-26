@@ -78,13 +78,13 @@ export function DashboardPage() {
       <section className="hero-panel">
         <div className="hero-orbit" aria-hidden="true" />
         <div className="relative max-w-2xl">
-          <div className="flex items-center gap-2 text-xs font-medium text-[#cce0bc]">
+          <div className="flex items-center gap-2 text-xs font-medium">
             <Sparkles size={15} />A SMALL ASK CAN OPEN A BIG DOOR
           </div>
           <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
             What do you need today?
           </h2>
-          <p className="mt-2 text-sm text-emerald-100/70">
+          <p className="mt-2 text-sm">
             Put it in your own words. Then review the details before posting.
           </p>
           <form onSubmit={understand} className="mt-6">
@@ -122,14 +122,14 @@ export function DashboardPage() {
                   </option>
                 </select>
               </div>
-              <button type="submit" className="button-peach" disabled={pending}>
+              <button type="submit" className="button-connect" disabled={pending}>
                 {pending ? "Preparing preview…" : "Find my connections"}
                 <ArrowRight size={16} />
               </button>
             </div>
           </form>
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-emerald-100/60">Try an idea:</span>
+            <span className="text-xs">Try an idea:</span>
             {samples.map(([label, sample]) => (
               <button
                 key={label}
