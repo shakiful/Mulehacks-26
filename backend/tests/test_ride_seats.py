@@ -82,7 +82,9 @@ def test_distance_affects_rank_names_do_not_gate_and_five_km_excludes(client):
     ranked = {match['post']['id']: match for match in result['matches']}
     assert ranked[near['id']]['score'] > ranked[far['id']]['score']
     assert excluded_pickup['id'] not in ranked and excluded_destination['id'] not in ranked
-    assert any('0.56 km' in reason for reason in ranked[near['id']]['reasons'])
+    assert any('0.35 miles' in reason for reason in ranked[near['id']]['reasons'])
+    assert any('0.00 miles' in reason for reason in ranked[near['id']]['reasons'])
+    assert all(' km' not in reason for reason in ranked[near['id']]['reasons'])
     assert any('straight-line' in warning for warning in ranked[near['id']]['warnings'])
     assert result['matching_mode'] == 'HEURISTIC'
 

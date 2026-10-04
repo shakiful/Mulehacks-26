@@ -18,6 +18,7 @@ import { CAMPUS_TIME_ZONE, fromTimestamp, resolveDateTime, type DateTimeDraft } 
 import { ErrorState } from "./States";
 import { Field } from "./Field";
 import { DateTimeFields } from "./DateTimeFields";
+import { RideLocationAutofill } from './RideLocationAutofill';
 const RideRoutePicker = lazy(() => import("./RideRoutePicker"));
 
 export function CreatePost({
@@ -79,6 +80,12 @@ export function CreatePost({
   }) : [];
   const fieldError = (name: string) =>
     errors.find((error) => error.field === name)?.message;
+  const rideHint = (label: 'origin' | 'destination'): string | null => {
+    const hint = currentPreview?.category === 'RIDE' ? currentPreview.details?.[label] : null;
+    return selectedCategory === 'RIDE' && typeof hint === 'string' && hint.trim() && details[label] === hint
+      && !details[`${label}_point`] && !dirty.current.has(`details.${label}`) && !dirty.current.has(`details.${label}_point`)
+      ? hint : null;
+  };
   const changeDetail = (key: string, value: string | number | GeoPoint | null) => {
     dirty.current.add(`details.${key}`);
     setDetails((current) => ({ ...current, [key]: value }));
@@ -118,6 +125,13 @@ export function CreatePost({
         const updated = { ...current };
         for (const [name, value] of Object.entries(result.details!)) {
           if (!dirty.current.has(`details.${name}`) && (authoritative || (value !== null && value !== ""))) updated[name] = value;
+        }
+        if (selectedCategory === 'RIDE') {
+          for (const label of ['origin', 'destination']) {
+            const field = `${label}_point`;
+            if (!dirty.current.has(`details.${label}`) && !dirty.current.has(`details.${field}`)
+              && updated[label] !== current[label]) updated[field] = null;
+          }
         }
         return updated;
       });
@@ -382,6 +396,15 @@ export function CreatePost({
             {detailField("destination", "To")}
             <div className="md:col-span-2">
               <Suspense fallback={<p role="status">Loading the route map…</p>}>
+                <RideLocationAutofill originHint={rideHint('origin')} destinationHint={rideHint('destination')}
+                  disabled={pending || refining} onResolved={(field, hint, place) => {
+                    const label = field === 'origin_point' ? 'origin' : 'destination';
+                    setDetails((current) => {
+                      if (current[label] !== hint || current[field] || dirty.current.has(`details.${label}`)
+                        || dirty.current.has(`details.${field}`)) return current;
+                      return { ...current, [field]: place.point, [label]: place.label };
+                    });
+                  }} />
                 <RideRoutePicker
                   origin={typeof details.origin_point === "object" ? details.origin_point : null}
                   destination={typeof details.destination_point === "object" ? details.destination_point : null}

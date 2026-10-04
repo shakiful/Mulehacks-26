@@ -6,7 +6,7 @@ from .ai.embeddings import EmbeddingResult, cosine_similarity
 from .errors import APIError
 from .models import Post
 from .posts import get_post
-from .rides import MAX_DISTANCE_KM, attach_availability, route_distances, seats_remaining
+from .rides import MAX_DISTANCE_KM, KM_PER_MILE, attach_availability, route_distances, seats_remaining
 
 STOPWORDS = set('a an the i you my your can need help with to from for and of at in on have looking someone synthetic demo'.split())
 
@@ -72,8 +72,8 @@ def score_pair(source: Post, target: Post, semantic_similarity=None):
         score = (0.25 * max(0, 1 - pickup / MAX_DISTANCE_KM)
                  + 0.25 * max(0, 1 - destination / MAX_DISTANCE_KM)
                  + 0.35 * max(0, 1 - minutes / 60) + 0.15)
-        reasons = [f'Pickup points are {pickup:.2f} km apart',
-                   f'Destination points are {destination:.2f} km apart',
+        reasons = [f'Pickup points are {pickup / KM_PER_MILE:.2f} miles apart',
+                   f'Destination points are {destination / KM_PER_MILE:.2f} miles apart',
                    f'Departures are {minutes:g} minutes apart',
                    f'{seats_remaining(offer)} remaining seats cover the requested seats']
         warnings = ['Distances are straight-line measurements, not road routes or driving times.']

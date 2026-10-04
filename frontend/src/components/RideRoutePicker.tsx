@@ -6,10 +6,11 @@ import type { GeoPoint } from "../api/types";
 import { mapStyles, type MapView } from "../lib/mapStyles";
 import { hasPlaceSearch, reversePlace, searchPlaces, type NamedPlace } from '../lib/places';
 import { Field } from './Field';
+import { rideDistanceMiles, RIDE_MATCH_RADIUS_MILES, UCM_CAMPUS } from '../lib/geo';
 
 setWorkerUrl(workerUrl);
 type PointField = "origin_point" | "destination_point";
-const campus: GeoPoint = { lat: 38.7625, lng: -93.7395 };
+const campus = UCM_CAMPUS;
 
 export default function RideRoutePicker({ origin, destination, originLabel = '', destinationLabel = '', onSelect, onNameResolved, disabled = false, errors = [] }: {
   origin: GeoPoint | null;
@@ -43,6 +44,7 @@ export default function RideRoutePicker({ origin, destination, originLabel = '',
   const [nameErrors, setNameErrors] = useState<Record<PointField, string>>({ origin_point: '', destination_point: '' });
   const searchRequest = useRef<AbortController | null>(null);
   const nameRequests = useRef<Record<PointField, AbortController | null>>({ origin_point: null, destination_point: null });
+  const tripMiles = rideDistanceMiles(origin, destination);
 
   function clearSearch() {
     searchRequest.current?.abort();
@@ -181,6 +183,15 @@ export default function RideRoutePicker({ origin, destination, originLabel = '',
       element.style.cssText = "background:#214638;color:white;border:2px solid white;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;font-weight:bold;box-shadow:0 1px 5px #555";
       return [new Marker({ element }).setLngLat([point.lng, point.lat]).addTo(map.current!)];
     });
+    if (origin && destination) {
+      let destinationLng = destination.lng;
+      if (destinationLng - origin.lng > 180) destinationLng -= 360;
+      if (destinationLng - origin.lng < -180) destinationLng += 360;
+      map.current.fitBounds([[origin.lng, origin.lat], [destinationLng, destination.lat]], { padding: 45, maxZoom: 15 });
+    } else if (origin || destination) {
+      const point = (origin ?? destination)!;
+      map.current.flyTo({ center: [point.lng, point.lat], zoom: 15 });
+    }
     return () => { markers.forEach((marker) => marker.remove()); };
   }, [origin, destination, ready]);
 
@@ -235,6 +246,7 @@ export default function RideRoutePicker({ origin, destination, originLabel = '',
       <p>From: {looking.origin_point ? 'Finding the street or place name…' : originLabel || (origin ? 'Pickup selected — enter its name above' : 'Choose a pickup place')}</p>
       <p>To: {looking.destination_point ? 'Finding the street or place name…' : destinationLabel || (destination ? 'Destination selected — enter its name above' : 'Choose a destination place')}</p>
     </div>
+    {tripMiles !== null && <p className="notice mt-3">From → To: {tripMiles.toFixed(2)} miles straight-line. Driving distance may be longer.</p>}
     {(['origin_point', 'destination_point'] as const).map((field) => nameErrors[field] && <p key={field} role="alert" className="error-panel mt-3">
       {field === 'origin_point' ? 'From' : 'To'}: {nameErrors[field]}
       <button type="button" className="text-button ml-2" disabled={disabled || looking[field]}
@@ -243,7 +255,7 @@ export default function RideRoutePicker({ origin, destination, originLabel = '',
       </button>
     </p>)}
     {errors.map((message) => <p key={message} role="alert" className="mt-2 text-sm text-red-700">{message}</p>)}
-    <p className="mt-3 text-xs text-stone-500">Matching compares pickup and destination pins within 5 km each, using straight-line distance. Confirm the actual route with the other person. These selected locations will be public in the local demo.</p>
+    <p className="mt-3 text-xs text-stone-500">Matching compares pickup and destination pins within {RIDE_MATCH_RADIUS_MILES.toFixed(2)} miles each, using straight-line distance. Confirm the actual route with the other person. These selected locations will be public in the local demo.</p>
     <p className="mt-2 text-xs text-stone-500">Place searches and selected map points are sent to MapTiler to find names. You can pan with the arrow keys and choose the map center. The initial campus view does not select your pickup.</p>
   </section>;
 }

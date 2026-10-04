@@ -10,6 +10,7 @@ const fake = vi.hoisted(() => ({ maps: [] as {
   loaded: boolean;
   remove: ReturnType<typeof vi.fn>;
   flyTo: ReturnType<typeof vi.fn>;
+  fitBounds: ReturnType<typeof vi.fn>;
 }[], failStart: false, reverse: vi.fn(), search: vi.fn() }));
 vi.mock('../lib/places', () => ({
   hasPlaceSearch: () => Boolean(import.meta.env.VITE_MAPTILER_API_KEY),
@@ -19,7 +20,7 @@ vi.mock("maplibre-gl", () => ({
   setWorkerUrl: vi.fn(), NavigationControl: class {},
   Map: class {
     options; events: Record<string, (event?: unknown) => void> = {};
-    loaded = false; remove = vi.fn(); flyTo = vi.fn(); canvas = document.createElement("canvas");
+    loaded = false; remove = vi.fn(); flyTo = vi.fn(); fitBounds = vi.fn(); canvas = document.createElement("canvas");
     constructor(options: { style: string; center: number[] }) {
       if (fake.failStart) throw new Error("WebGL unavailable");
       this.options = options; fake.maps.push(this);
@@ -43,6 +44,15 @@ function loaded(index = 0) {
 }
 
 describe("ride map selection", () => {
+  it('frames both automatically supplied pins and shows route and matching distances in miles', () => {
+    const origin = { lat: 38.7625, lng: -93.7395 }, destination = { lat: 38.7905, lng: -93.7390 };
+    render(<RideRoutePicker origin={origin} destination={destination} originLabel="UCM" destinationLabel="Walmart" onSelect={vi.fn()} />);
+    loaded();
+    expect(fake.maps[0].fitBounds).toHaveBeenCalledWith([[origin.lng, origin.lat], [destination.lng, destination.lat]], { padding: 45, maxZoom: 15 });
+    expect(screen.getByText('From → To: 1.93 miles straight-line. Driving distance may be longer.')).toBeInTheDocument();
+    expect(screen.getByText(/within 3\.11 miles each/)).toBeInTheDocument();
+    expect(screen.queryByText(/\bkm\b/)).not.toBeInTheDocument();
+  });
   it("uses MapTiler only with a configured public key and otherwise OpenFreeMap", () => {
     expect(mapStyles("")).toEqual([{ name: "OpenFreeMap", style: "https://tiles.openfreemap.org/styles/bright" }]);
     expect(mapStyles("synthetic key")[0]).toEqual({ name: "MapTiler",

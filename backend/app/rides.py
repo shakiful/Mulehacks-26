@@ -6,6 +6,7 @@ from sqlalchemy import func, select, text
 from .models import Connection, Post, RideReservation
 
 MAX_DISTANCE_KM = 5.0
+KM_PER_MILE = 1.609344
 
 
 def point(details, field):
