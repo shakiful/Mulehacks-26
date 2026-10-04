@@ -12,7 +12,7 @@ from .schemas import (
     Category, DemoUsers, Health, PostCreate, PostList, PostResponse, PostStatus, StatusUpdate,
     ConnectionInput, ConnectionList, ConnectionResponse, ConnectionStatus, ConnectionUpdate,
     MatchInput, MatchResponse, UnderstandInput, Understanding,
-    SecurityInput, SecurityResult,
+    SecurityInput, SecurityResult, DiningMenus,
 )
 
 router = APIRouter(prefix='/api')
@@ -22,6 +22,13 @@ PostId = Annotated[int, Path(ge=1)]
 @router.get('/health', response_model=Health)
 def health(request: Request):
     return Health(demo_mode=request.app.state.settings.demo_mode)
+
+
+@router.get('/dining/menus', response_model=DiningMenus)
+def dining_menus(request: Request, response: Response):
+    # Public campus information; no demo identity, submitted URLs or database reads.
+    response.headers['Cache-Control'] = 'no-store'
+    return request.app.state.dining.today()
 
 
 @router.get('/demo/users', response_model=DemoUsers)

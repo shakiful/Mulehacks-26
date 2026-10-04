@@ -6,6 +6,7 @@ import type {
   Category,
   Connection,
   DemoUser,
+  DiningMenuResponse,
   MatchResponse,
   Post,
   SecurityResult,
@@ -90,6 +91,20 @@ export function createMockApi({
     listDemoUsers: async () => {
       await ready(false);
       return { items: clone(users) };
+    },
+    getDiningMenus: async () => {
+      await ready(false);
+      if (getScenario() === "error")
+        fail(503, "MOCK_UNAVAILABLE", "Demo error: dining menus could not be loaded.");
+      const result = clone(fixtureData.dining_menus) as DiningMenuResponse;
+      if (getScenario() === "empty") {
+        result.halls.forEach((hall) => {
+          hall.status = "EMPTY";
+          hall.message = "Synthetic empty menu example.";
+          hall.meals = [];
+        });
+      }
+      return result;
     },
     understand: async (input) => {
       await ready();

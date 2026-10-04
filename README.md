@@ -50,9 +50,9 @@ VITE_API_BASE_URL=http://localhost:8000/api
 
 Restart Vite after changing these values. One typed API interface covers both adapters; no page changes are required. The live adapter follows `docs/API_CONTRACT.md`, sends `X-Demo-User-Id` on protected operations, and uses the standard error envelope for form feedback. Only public configuration belongs in VITE variables.
 
-The backend supplies the contracted health, demo profiles, posts, understanding, matches, connections and `/security/analyze` endpoints. CORS allows `http://localhost:5173` and `X-Demo-User-Id`. Existing API types and adapters support the Security page. The API contract and fixtures are unchanged. `/api` is a route prefix; open `/docs` for the interactive API or `/api/health` for a health check.
+The backend supplies the contracted health, demo profiles, posts, understanding, matches, connections, `/security/analyze` and public `/dining/menus` endpoints. CORS allows `http://localhost:5173` and `X-Demo-User-Id`. The dining extension is documented in the API contract, fixtures and both client adapters. `/api` is a route prefix; open `/docs` for the interactive API or `/api/health` for a health check.
 
-Frontend validation: 37 passing tests, TypeScript checks, and a production build. Tests cover API adapters, fixture connections, profile switching, request states, preview/follow-up autofill, explicit mock selection, private Security routing, risk rendering, validation, clearing and late-response privacy. Backend validation: 255 tests cover posts, repeatable seeds, CORS/errors, time clarification, Gemini configuration/recovery, output validation, matching, connections and versioned caches. The 49 Security checks cover input/auth, observed risk signals, URL structure, malformed or invented provider evidence, failure/recovery, no content logging and read-only database access. Live browser checks verified a ride through acceptance, SQL preview/follow-up autofill, and HIGH-risk Gemini assessment of a synthetic account-expiry/login lure. Direct Gemini checks returned LOW for an ordinary study invitation and security education. Automated tests never require paid calls. An earlier synthetic Google embedding check produced cosine similarity 0.8267 for SQL/relational-database relevance versus 0.7385 for physics with 768-dimensional vectors. These are smoke checks, not an accuracy benchmark.
+Frontend validation: 45 passing tests, TypeScript checks, and a production build. Tests cover API adapters, fixture connections, profile switching, request states, preview/follow-up autofill, explicit mock selection, private Security routing, risk rendering, validation, clearing and late-response privacy. Dining checks cover on-demand loading, both halls, preserved post drafts, empty/unavailable/error states, retry, synthetic labeling, plain-text rendering and campus midnight rollover. Backend validation: 272 tests cover posts, repeatable seeds, CORS/errors, time clarification, Gemini configuration/recovery, output validation, matching, connections, versioned caches and dining menus. The 17 dining checks cover the public response, Central-time dates/DST, current-day cache expiry, independent hall failure/recovery, missing/invalid listings and bounded fixed-host transport. The 49 Security checks cover input/auth, observed risk signals, URL structure, malformed or invented provider evidence, failure/recovery, no content logging and read-only database access. Live browser checks verified a ride through acceptance, SQL preview/follow-up autofill, HIGH-risk Gemini assessment of a synthetic account-expiry/login lure, and today's Todd/Ellis Brunch and Dinner menus on Food Connect. Direct Gemini checks returned LOW for an ordinary study invitation and security education. Automated tests never require paid calls or Sodexo access. An earlier synthetic Google embedding check produced cosine similarity 0.8267 for SQL/relational-database relevance versus 0.7385 for physics with 768-dimensional vectors. These are smoke checks, not an accuracy benchmark.
 
 ## Backend local development
 Python backend: FastAPI + SQLAlchemy + SQLite. Frontend: React + Vite + Tailwind.
@@ -68,6 +68,18 @@ backend/.venv/Scripts/python.exe -m uvicorn backend.app.main:app --reload --host
 ```
 
 Copy the example only for first setup; preserve an existing `.env`. On macOS/Linux activate with `source backend/.venv/bin/activate` after creating the environment, then use `python` for the same install, seed, and server commands. Run both services in separate terminals. Frontend: http://localhost:5173. API documentation: http://localhost:8000/docs. Health: http://localhost:8000/api/health.
+
+### UCM daily dining menus
+
+Open **Food Connect** at http://localhost:5173/food and click **Check dining menu**, beside **Create a post**. Today's [Todd](https://ucmo.sodexomyway.com/en-us/locations/todd-dining-center-in-todd-hall) and [Ellis](https://ucmo.sodexomyway.com/en-us/locations/ellis-dining-center) Sodexo menus appear inside the page, grouped by meal and station. Click a meal heading to expand/collapse its items. **Hide dining menu** closes the panel without clearing an open post draft.
+
+Run the existing frontend and backend setup commands above; no new dependency, API key, database seed or environment setting is needed for menus. The backend needs internet access to UCM's Sodexo website and `api-prd.sodexomyway.net`. Restart the backend after pulling this feature. To check the endpoint in PowerShell:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/api/dining/menus | ConvertTo-Json -Depth 8
+```
+
+The server uses today's date in UCM's `America/Chicago` time zone, independent of `DEMO_DATE` and your device location. Complete menus are cached for up to five minutes; **Refresh menus** reloads the current server result. An open panel requests a new day's menus after campus midnight. Each hall has its own missing-menu/unavailable state, retry and official link. No menu is invented or replaced with yesterday's food. Consult Sodexo for changed items, ingredients, nutrition, allergens and hours. Mock mode clearly shows fixed synthetic menu examples, not today's food.
 
 Settings load `backend/.env`, then root `.env`, then process environment (later values win). SQLite defaults to `backend/connecthub.db`. The server creates the schema, including the connections table, on startup; the seed command creates four profiles and six labeled posts. Run the seed command repeatedly without duplicates. To move only seed posts to today's date and OPEN status, run `backend/.venv/Scripts/python.exe -m backend.app.seed --refresh`. Set `DEMO_DATE=YYYY-MM-DD` for a fixed rehearsal day, or leave it blank to use today in `DEMO_TIMEZONE`. User-created posts and connection records are preserved.
 
@@ -154,7 +166,7 @@ node node_modules/vite/bin/vite.js build --configLoader native
 node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 5173 --strictPort --configLoader native
 ```
 
-These commands were used for this workspace's TypeScript checks, 37 frontend tests, production build, and live browser checks. Restart/rebuild the frontend after changing `.env.local`.
+These commands were used for this workspace's TypeScript checks, 45 frontend tests, production build, and live browser checks. Restart/rebuild the frontend after changing `.env.local`.
 
 Each laptop runs its own frontend, backend and seeded SQLite database. Git shares code and fixtures; it does not synchronize live database state. During the final demo, run both services on one chosen laptop. Hosting or a shared backend is optional later work.
 

@@ -137,9 +137,23 @@ export interface FieldError {
 export interface ErrorEnvelope {
   error: { code: string; message: string; details: FieldError[] };
 }
+export interface DiningMenuResponse {
+  date: string;
+  timezone: "America/Chicago";
+  fetched_at: string;
+  halls: {
+    id: "todd" | "ellis";
+    name: string;
+    source_url: string;
+    status: "AVAILABLE" | "EMPTY" | "UNAVAILABLE";
+    message: string | null;
+    meals: { name: string; stations: { name: string; items: string[] }[] }[];
+  }[];
+}
 export interface ApiClient {
   health(): Promise<{ status: "ok"; demo_mode: boolean }>;
   listDemoUsers(): Promise<{ items: DemoUser[] }>;
+  getDiningMenus(): Promise<DiningMenuResponse>;
   understand(input: UnderstandInput): Promise<Understanding>;
   createPost(input: CreatePostInput): Promise<Post>;
   listPosts(query?: PostQuery): Promise<PostList>;

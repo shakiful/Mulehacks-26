@@ -102,6 +102,14 @@ describe("live API contract", () => {
       details: fixtures.validation_error.error.details,
     });
   });
+  it("loads dining menus as public information without a demo identity header", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(fixtures.dining_menus)));
+    const api = createLiveApi("/api", () => 1, fetcher);
+    expect(await api.getDiningMenus()).toEqual(fixtures.dining_menus);
+    expect(fetcher).toHaveBeenCalledWith("/api/dining/menus", {
+      method: "GET", headers: { Accept: "application/json" },
+    });
+  });
   it("handles network failures and unreadable responses", async () => {
     const offline = createLiveApi(
       "/api",
@@ -124,6 +132,18 @@ describe("live API contract", () => {
 });
 
 describe("fixture mock behavior", () => {
+  it("uses synthetic dining examples and supports empty/error states without fetching Sodexo", async () => {
+    let scenario: "normal" | "empty" | "error" = "normal";
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const api = createMockApi({ getDemoUserId: () => null, delayMs: 0, getScenario: () => scenario });
+    expect(await api.getDiningMenus()).toEqual(fixtures.dining_menus);
+    scenario = "empty";
+    expect((await api.getDiningMenus()).halls.every((hall) => hall.status === "EMPTY" && !hall.meals.length)).toBe(true);
+    scenario = "error";
+    await expect(api.getDiningMenus()).rejects.toMatchObject({ status: 503 });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
   const setup = (initialIdentity: number | null = 1) => {
     let identity = initialIdentity;
     const api = createMockApi({ getDemoUserId: () => identity, delayMs: 0 });
