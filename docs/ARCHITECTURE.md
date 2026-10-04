@@ -60,4 +60,6 @@ Demo mode is local only. X-Demo-User-Id selects an existing seed user; it is not
 
 Use UTC in database; request timezone and reference_time for relative-language extraction. Return ISO 8601 timestamps with offsets, not ambiguous strings. DST ambiguity or missing dates triggers clarification.
 
+The shared form uses separate native date/time controls for start and optional end availability. `lib/dateTime.ts` interprets their wall-clock values in America/Chicago, independently of browser timezone, and converts them to contracted aware timestamps. The backend's existing UTCDateTime converts/stores UTC. AI previews and saved posts round-trip into the campus date/time; manual corrections remain protected during follow-up extraction. Untouched timestamps preserve their original instant and seconds. Missing halves, invalid end ordering and skipped spring times block saving; repeated autumn times require an occurrence choice. Dashboard understanding and post cards also use the campus timezone.
+
 CORS allows only configured frontend origins. Provider credentials stay on the server. Limit input length, validate provider JSON, use timeouts and redact content from logs. Tests inject a fake provider; they never require paid API calls.

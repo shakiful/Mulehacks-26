@@ -29,6 +29,7 @@ export function createMockApi({
   const users: DemoUser[] = clone(fixtureData.demo_users.items);
   const posts = clone(fixtureData.post_list.items) as Post[];
   const connections: Connection[] = [];
+  const editedPostIds = new Set<number>();
   let nextPostId = Math.max(...posts.map((post) => post.id)) + 1;
   let nextConnectionId = fixtureData.connection.id;
 
@@ -55,6 +56,7 @@ export function createMockApi({
     if (
       getScenario() === "empty" ||
       source.id !== canned.post_id ||
+      editedPostIds.has(source.id) ||
       source.status !== "OPEN"
     )
       return {
@@ -65,6 +67,7 @@ export function createMockApi({
       const target = findPost(match.post.id);
       if (
         target.status !== "OPEN" ||
+        editedPostIds.has(target.id) ||
         target.id === source.id ||
         target.author.id === source.author.id ||
         target.category !== source.category
@@ -247,6 +250,24 @@ export function createMockApi({
     getPost: async (id) => {
       await ready();
       return clone(findPost(id));
+    },
+    editPost: async (id, input) => {
+      const user = (await ready())!;
+      const post = findPost(id);
+      if (post.author.id !== user.id)
+        fail(403, "FORBIDDEN", "Only the author can edit this post.");
+      if (post.status !== "OPEN")
+        fail(409, "CONFLICT", "Only open posts can be edited.");
+      if (input.category !== post.category)
+        fail(400, "INVALID_OPERATION", "The category of an existing post cannot change.");
+      const errors = validatePost(input);
+      if (errors.length)
+        fail(422, "VALIDATION_ERROR", "Correct the highlighted fields.", errors);
+      const { title, text, intent, location, starts_at, ends_at, details } = clone(input);
+      Object.assign(post, { title: title.trim(), text: text.trim(), intent, location,
+        starts_at, ends_at, details, updated_at: new Date().toISOString() });
+      editedPostIds.add(id);
+      return clone(post);
     },
     updatePost: async (id, status) => {
       const user = (await ready())!;

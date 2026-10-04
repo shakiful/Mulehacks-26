@@ -50,3 +50,24 @@ def close_post(db: Session, post_id: int, status: str, user: User) -> Post:
     db.commit()
     db.refresh(post)
     return post
+
+
+def edit_post(db: Session, post_id: int, body, user: User) -> Post:
+    post = get_post(db, post_id)
+    if post.user_id != user.id:
+        raise APIError(403, 'FORBIDDEN', 'Only the author can edit this post.')
+    if post.status != 'OPEN':
+        raise APIError(409, 'CONFLICT', 'Only open posts can be edited.')
+    if body.category != post.category:
+        raise APIError(400, 'INVALID_OPERATION', 'The category of an existing post cannot change.')
+    # Keep ownership/status/creation metadata and protect against concurrent closure.
+    result = db.execute(update(Post).where(
+        Post.id == post_id, Post.user_id == user.id,
+        Post.status == 'OPEN', Post.category == body.category,
+    ).values(**body.model_dump()))
+    if result.rowcount != 1:
+        db.rollback()
+        raise APIError(409, 'CONFLICT', 'This post is no longer open for editing.')
+    db.commit()
+    db.refresh(post)
+    return post

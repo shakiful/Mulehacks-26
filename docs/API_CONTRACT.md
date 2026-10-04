@@ -19,6 +19,7 @@ Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps u
 | POST /posts | confirmed post body below | 201 Post |
 | GET /posts | optional category, status (default OPEN), user_id; limit 1–100 (default 20), offset >=0 | 200 `{ "items": [Post], "total": 1, "limit": 20, "offset": 0 }` |
 | GET /posts/{post_id} | none | 200 Post |
+| PUT /posts/{post_id} | complete confirmed post body below | 200 updated Post; author of OPEN post only; category fixed |
 | PATCH /posts/{post_id} | `{ "status": "COMPLETED" }` (or CANCELLED) | 200 Post; author only |
 | POST /matches | `{ "post_id": 42, "limit": 5 }`; limit 1–20 | 200 ranked matches below; source author only |
 | POST /connections | `{ "source_post_id": 42, "target_post_id": 7 }` | 201 Connection; source author only |
@@ -57,11 +58,19 @@ analysis_mode is LLM or HEURISTIC. Required fields unresolved by extraction appe
 ```
 Required common: category, intent, title (1–120 chars), text (1–4000 chars), details. Optional common: location, starts_at, ends_at. End must be later than start; end requires start.
 
+Frontend calendar/time controls use UCM campus time (America/Chicago) and automatically produce these timestamp fields; users do not type ISO strings or offsets. For example, October 4, 2026 at 10:00 PM CDT is `2026-10-05T03:00:00Z`. The backend normalizes aware timestamps to UTC. Both omitted optional values and cleared availability keep the existing null semantics; no date/time API fields were added.
+
 Category details:
 - RIDE: origin and destination nonempty strings; seats integer >=1. starts_at required; intent REQUEST/OFFER only. Optional purpose string. No ends_at needed.
 - STUDY: course or topic nonempty (at least one). skill_level nullable BEGINNER/INTERMEDIATE/ADVANCED; mode nullable ONLINE/IN_PERSON. Availability uses common starts_at/ends_at.
 - RESTAURANT: restaurant or cuisine nonempty; activity_type DINING/GROUP_ORDER/TRIP; group_size integer >=1, meaning total desired group size, not a guaranteed remaining-seat count. starts_at required; intent REQUEST/OFFER only.
 - COMMUNITY: subcategory enum from PROJECT_SPEC.md; optional item or activity strings. Common text supplies the matching description.
+
+## Edit post
+
+`PUT /posts/{post_id}` takes the complete confirmed post body shown above and returns the updated Post with 200. It replaces editable fields, including explicit nulls for cleared optional values. The existing PATCH status endpoint is unchanged. Only the author of an OPEN post may edit it; another author receives 403 and a closed post receives 409. Category remains fixed (400 if changed). All creation validations still apply. IDs, author, status and created_at are server-controlled and preserved; updated_at changes on save. Missing posts return 404. Security analyses are private and never editable public posts.
+
+New matches use the saved fields. The embedding cache's existing content hash detects edited title/text and regenerates vectors lazily during matching. Existing connection records retain their current statuses; users should coordinate changed details with participants. Mock edits invalidate the associated scripted fixture matches rather than replaying stale scores. Browser CORS allows PUT from the configured frontend origins. Saving an edit does not require an AI provider call.
 
 Post response includes submitted fields plus id, author `{ "id": 1, "name": "Rafi (demo)" }`, status OPEN, created_at and updated_at. Return all common optional fields explicitly as null when absent. Never return secrets or embeddings.
 

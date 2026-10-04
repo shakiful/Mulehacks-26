@@ -158,6 +158,7 @@ export interface ApiClient {
   createPost(input: CreatePostInput): Promise<Post>;
   listPosts(query?: PostQuery): Promise<PostList>;
   getPost(id: number): Promise<Post>;
+  editPost(id: number, input: CreatePostInput): Promise<Post>;
   updatePost(id: number, status: "COMPLETED" | "CANCELLED"): Promise<Post>;
   getMatches(post_id: number, limit?: number): Promise<MatchResponse>;
   createConnection(

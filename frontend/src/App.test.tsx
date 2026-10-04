@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
@@ -20,6 +20,37 @@ const navigationLink = (name: string) =>
     { name },
   );
 describe("frontend workflows", () => {
+  it("edits the author's existing post, returns to My posts, and keeps one record", async () => {
+    const user = userEvent.setup();
+    renderApp("/my-posts");
+    await screen.findByRole("heading", { name: "Your open posts" }, { timeout: 3000 });
+    const edit = await screen.findByRole("link", { name: "Edit post" });
+    expect(edit).toHaveAttribute("href", "/posts/42/edit");
+    await user.click(edit);
+    expect(await screen.findByRole("textbox", { name: "Post title" })).toHaveValue("Help with SQL joins");
+    expect(screen.getByRole("combobox", { name: "Category" })).toBeDisabled();
+    await user.clear(screen.getByRole("textbox", { name: "Post title" }));
+    await user.type(screen.getByRole("textbox", { name: "Post title" }), "Updated SQL help");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("Post updated. Your changes are saved.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Updated SQL help" })).toBeInTheDocument();
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Edit post" })).toHaveAttribute("href", "/posts/42/edit");
+  });
+  it("cancels edits without saving and rejects editing another profile's post", async () => {
+    const user = userEvent.setup();
+    renderApp("/posts/42/edit");
+    const title = await screen.findByRole("textbox", { name: "Post title" });
+    await user.clear(title);
+    await user.type(title, "Unsaved title");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(await screen.findByRole("heading", { name: "Help with SQL joins" })).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Edit post" }));
+    await screen.findByRole("button", { name: "Save changes" });
+    await user.selectOptions(screen.getByRole("combobox", { name: "Demo profile" }), "2");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only the author can edit this post.");
+    expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
+  });
   it("shows loading, dashboard shortcuts, synthetic profiles, and empty/error recovery", async () => {
     const user = userEvent.setup();
     renderApp();
@@ -114,10 +145,8 @@ describe("frontend workflows", () => {
     );
     await user.type(screen.getByRole("textbox", { name: "From" }), "UCM");
     await user.type(screen.getByRole("textbox", { name: "To" }), "Walmart");
-    await user.type(
-      screen.getByRole("textbox", { name: "Start date & time" }),
-      "2026-10-03T18:00:00-05:00",
-    );
+    fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "2026-10-03" } });
+    fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "18:00" } });
     await user.click(screen.getByRole("button", { name: "Confirm & post" }));
     expect(
       await screen.findByRole(
@@ -177,7 +206,7 @@ describe("frontend workflows", () => {
     });
     expect(screen.getByRole("textbox", { name: "From" })).toHaveValue("");
     expect(
-      screen.getByRole("textbox", { name: "Start date & time" }),
+      screen.getByLabelText("Start date"),
     ).toHaveValue("");
     expect(
       screen.getByText(/Please confirm: origin, destination, starts at/),
