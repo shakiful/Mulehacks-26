@@ -29,7 +29,7 @@ export function createLiveApi(
         error: {
           code: "NETWORK_ERROR",
           message:
-            "Could not reach ConnectHub. Check the backend URL and try again.",
+            "Could not reach MuleCampusBuddy. Check the backend URL and try again.",
           details: [],
         },
       });
