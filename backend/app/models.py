@@ -64,3 +64,17 @@ class Connection(Base):
     status: Mapped[str] = mapped_column(String(10), default='PENDING')
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
+
+
+class PostEmbedding(Base):
+    __tablename__ = 'post_embeddings'
+    __table_args__ = (CheckConstraint('dimensions >= 1'),)
+
+    post_id: Mapped[int] = mapped_column(ForeignKey('posts.id', ondelete='CASCADE'), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(80))
+    model: Mapped[str] = mapped_column(String(200))
+    dimensions: Mapped[int]
+    input_version: Mapped[str] = mapped_column(String(80))
+    input_hash: Mapped[str] = mapped_column(String(64))
+    vector: Mapped[list] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)

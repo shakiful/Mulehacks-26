@@ -11,14 +11,14 @@
 Proposed module paths are targets, not mandatory replacements for a working existing structure. Keep the current layout where practical.
 
 ## Pipeline
-Preview understanding → editable confirmation → post validation/persistence → embedding generation → candidate filtering → weighted scoring → reasons → connection request.
+Preview understanding → editable confirmation → post validation/persistence → candidate filtering → embedding generation/cache validation → weighted scoring → reasons → connection request. Embeddings are generated lazily for compatible confirmed posts or with the explicit backfill command; preview and post creation remain usable offline.
 
 No vector database is needed for the small demo dataset. Store embedding vector JSON and provider/model metadata and compare in memory. Never compare embeddings from different models or dimensions; regenerate or use a labeled heuristic fallback.
 
 ## Data model
 - User: id, name, major, created_at. Email/password/trust fields are deferred.
 - Post: id, user_id, category, intent, title, text, status, location, starts_at, ends_at, category details JSON, created_at, updated_at.
-- PostEmbedding: post_id, provider, model, vector, created_at.
+- PostEmbedding: post_id (primary key), provider, model, dimensions, input_version, input_hash, vector, created_at. One current vector per post; incompatible/stale metadata requires regeneration.
 - Connection: id, requester_id, receiver_id, source_post_id, target_post_id, status, created_at, updated_at. Unique active pair prevents duplicate pending/accepted requests.
 - Security analyses: do not persist submitted text in MVP. Return results directly; avoid logging private content.
 
@@ -35,7 +35,11 @@ Implemented Food/Community rules: opposite REQUEST/OFFER intents, or Community P
 
 Fallback mode replaces semantic similarity with deterministic normalized token overlap; label `HEURISTIC`. Semantic mode is `SEMANTIC`. Do not describe fallback as embedding-based.
 
-Current implementation uses Jaccard overlap of case-folded word tokens after removing common filler words. Study semantic overlap compares title/text; course/topic overlap compares those confirmed detail fields. Food/Community semantic overlap compares title/text. No synonym or geographic inference is performed. The current understanding provider is conservative offline extraction behind a validated service interface; hosted provider adapters and PostEmbedding storage are deferred. Routes call the services. The connection table uses an unordered post-id pair with a SQLite partial unique index for PENDING/ACCEPTED, including requests made in reverse order. Transitions update only PENDING rows; adding the table on startup preserves existing post/user rows.
+Heuristic mode uses Jaccard overlap of case-folded word tokens after removing common filler words. Semantic mode replaces only that title/text component with cosine similarity clamped to [0,1]. Study course/topic overlap still compares confirmed detail terms; availability, mode/location, category weights, and hard gates remain unchanged. Semantic reasons describe model relevance; heuristic reasons describe shared words. No geographic inference is performed. Understanding supports conservative offline extraction or Gemini structured JSON behind the validated service interface. Routes call the services. The connection table uses an unordered post-id pair with a SQLite partial unique index for PENDING/ACCEPTED, including requests made in reverse order. Transitions update only PENDING rows; adding the table on startup preserves existing post/user rows.
+
+Embedding settings are independent of understanding: EMBEDDING_PROVIDER defaults to heuristic and optionally selects OpenAI or Gemini, with model, dimensions, timeout, and server-only key. The input format title-text-v1 is confirmed title + newline + text, hashed with SHA-256. Gemini uses gemini-embedding-001 with SEMANTIC_SIMILARITY; its input version additionally records gemini-semantic-similarity-v1. A cache row is reusable only when provider/model/dimensions/input version/hash all agree and its vector is finite, nonzero, and the expected length. All required vectors are validated before any regeneration is committed. SQLite upserts make repeated backfills and concurrent writes safe; cache version checks prevent comparing mixed spaces. Model/dimension/input changes regenerate rows. A provider failure makes the entire candidate set HEURISTIC with a warning or raises a standard 503 when fallback is disabled, without overwriting old rows. Ride and empty candidate sets never call providers. Provider HTTP responses are bounded, validated, and not logged; redirects are rejected. Embedding values/metadata stay out of API responses.
+
+AI_PROVIDER=gemini uses AI_MODEL (default gemini-3.5-flash-lite), AI_TIMEOUT_SECONDS and GEMINI_API_KEY (GOOGLE_API_KEY is an alternative). It sends the validated text/reference_time/timezone/category_hint as untrusted data beneath a fixed system instruction, without tools or URL fetching. Its JSON schema is separate from public responses: the server restores original text, computes missing_fields, validates the selected category's details, rejects cross-category values, and labels valid output LLM. Missing clocks/dates and recognized ambiguous AM/PM or DST times require clarification; unsupported model output follows the existing fallback/503 policy. Previews are not stored or embedded. Synthetic live calls verified Google extraction and 768-dimensional semantic vectors; offline automated checks still use fakes.
 
 ## Operational choices
 Demo mode is local only. X-Demo-User-Id selects an existing seed user; it is not authentication. Check ownership of posts and connection roles even in demo mode. Disable demo endpoints when DEMO_MODE=false until real authentication exists.

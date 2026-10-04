@@ -63,8 +63,8 @@ def understand(body: UnderstandInput, request: Request, user: CurrentUser):
 
 
 @router.post('/matches', response_model=MatchResponse)
-def matches(body: MatchInput, db: DB, user: CurrentUser):
-    return matching.find_matches(db, user, body.post_id, body.limit)
+def matches(body: MatchInput, request: Request, db: DB, user: CurrentUser):
+    return matching.find_matches(db, user, body.post_id, body.limit, request.app.state.embeddings)
 
 
 @router.post('/connections', response_model=ConnectionResponse, status_code=201)
