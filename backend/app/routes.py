@@ -3,12 +3,15 @@ from typing import Annotated
 from fastapi import APIRouter, Path, Query, Request
 from sqlalchemy import select
 
-from . import posts
+from . import connections, matching, posts
+from .ai.understanding import UnderstandingService
 from .dependencies import CurrentUser, DB
 from .errors import APIError
 from .models import User
 from .schemas import (
     Category, DemoUsers, Health, PostCreate, PostList, PostResponse, PostStatus, StatusUpdate,
+    ConnectionInput, ConnectionList, ConnectionResponse, ConnectionStatus, ConnectionUpdate,
+    MatchInput, MatchResponse, UnderstandInput, Understanding,
 )
 
 router = APIRouter(prefix='/api')
@@ -52,3 +55,28 @@ def get_post(post_id: PostId, db: DB, user: CurrentUser):
 @router.patch('/posts/{post_id}', response_model=PostResponse)
 def update_status(post_id: PostId, body: StatusUpdate, db: DB, user: CurrentUser):
     return posts.close_post(db, post_id, body.status, user)
+
+
+@router.post('/understand', response_model=Understanding)
+def understand(body: UnderstandInput, request: Request, user: CurrentUser):
+    return UnderstandingService(request.app.state.settings).preview(body)
+
+
+@router.post('/matches', response_model=MatchResponse)
+def matches(body: MatchInput, db: DB, user: CurrentUser):
+    return matching.find_matches(db, user, body.post_id, body.limit)
+
+
+@router.post('/connections', response_model=ConnectionResponse, status_code=201)
+def connect(body: ConnectionInput, db: DB, user: CurrentUser):
+    return connections.create_connection(db, user, body)
+
+
+@router.get('/connections', response_model=ConnectionList)
+def inbox(db: DB, user: CurrentUser, status: ConnectionStatus | None = None):
+    return connections.list_connections(db, user, status)
+
+
+@router.patch('/connections/{connection_id}', response_model=ConnectionResponse)
+def update_connection(connection_id: Annotated[int, Path(ge=1)], body: ConnectionUpdate, db: DB, user: CurrentUser):
+    return connections.transition(db, user, connection_id, body.status)

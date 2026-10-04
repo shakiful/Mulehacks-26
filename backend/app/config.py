@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     cors_origins: str = 'http://localhost:5173'
     demo_date: date | None = None
     demo_timezone: str = 'America/Chicago'
+    ai_provider: str = 'heuristic'
+    ai_fallback_enabled: bool = True
 
     @field_validator('demo_date', mode='before')
     @classmethod
