@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, Utensils, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Category } from "../api/types";
 import { CreatePost } from "../components/CreatePost";
 import { PostBoard } from "../components/PostBoard";
+import { DiningMenus } from "../components/DiningMenus";
 import { categoryNames } from "../lib/posts";
 
 const descriptions: Record<Category, string> = {
@@ -16,6 +17,7 @@ const descriptions: Record<Category, string> = {
 };
 export function CategoryPage({ category }: { category: Category }) {
   const [creating, setCreating] = useState(false);
+  const [showMenus, setShowMenus] = useState(false);
   const navigate = useNavigate();
   return (
     <>
@@ -25,14 +27,26 @@ export function CategoryPage({ category }: { category: Category }) {
           <h1>{categoryNames[category]}</h1>
           <p>{descriptions[category]}</p>
         </div>
-        <button
+        <div className="flex flex-wrap gap-3">
+          {category === "RESTAURANT" && <button
+            className="button-secondary"
+            aria-expanded={showMenus}
+            aria-controls="dining-menus"
+            onClick={() => setShowMenus(!showMenus)}
+          >
+            <Utensils size={16} />
+            {showMenus ? "Hide dining menu" : "Check dining menu"}
+          </button>}
+          <button
           className="button-primary"
           onClick={() => setCreating(!creating)}
         >
           {creating ? <X size={16} /> : <Plus size={16} />}
           {creating ? "Close form" : "Create a post"}
-        </button>
+          </button>
+        </div>
       </div>
+      {category === "RESTAURANT" && showMenus && <DiningMenus />}
       {creating && (
         <div className="mb-8">
           <CreatePost

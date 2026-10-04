@@ -71,6 +71,7 @@ export function createLiveApi(
   return {
     health: () => request("/health", "GET", undefined, false),
     listDemoUsers: () => request("/demo/users", "GET", undefined, false),
+    getDiningMenus: () => request("/dining/menus", "GET", undefined, false),
     understand: (input) => request("/understand", "POST", input),
     createPost: (input) => request("/posts", "POST", input),
     listPosts: (query = {}) => {

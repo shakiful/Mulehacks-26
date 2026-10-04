@@ -1,6 +1,6 @@
 # API contract — proposed MVP v1
 
-Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps use ISO 8601 with a UTC offset. Every protected operation uses `X-Demo-User-Id` in local DEMO_MODE; never trust body user_id. Seed identities are synthetic. Health and demo-user listing require no header.
+Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps use ISO 8601 with a UTC offset. Every protected operation uses `X-Demo-User-Id` in local DEMO_MODE; never trust body user_id. Seed identities are synthetic. Health, demo-user listing and public dining menus require no header.
 
 ## Shared types
 - Category: RIDE | STUDY | RESTAURANT | COMMUNITY. Understanding additionally supports CYBERSECURITY.
@@ -14,6 +14,7 @@ Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps u
 |---|---|---|
 | GET /health | none | 200 `{ "status": "ok", "demo_mode": true }` |
 | GET /demo/users | none; demo only | 200 `{ "items": [{ "id": 1, "name": "Rafi (demo)" }] }` |
+| GET /dining/menus | none; public, always today's UCM date | 200 dining response below, with independent hall statuses |
 | POST /understand | text, optional category_hint, reference_time, timezone | 200 preview below; no persistence |
 | POST /posts | confirmed post body below | 201 Post |
 | GET /posts | optional category, status (default OPEN), user_id; limit 1–100 (default 20), offset >=0 | 200 `{ "items": [Post], "total": 1, "limit": 20, "offset": 0 }` |
@@ -27,6 +28,18 @@ Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps u
 | POST /security/analyze | `{ "text": "Your university account expires today. Click https://ucm-login-example.xyz" }` | 200 risk response below; no public post/persistence |
 
 No `/posts/{category}` route: use `/posts?category=STUDY` to avoid collision with post ids. No `/analyze` alias: use `/security/analyze` everywhere.
+
+## UCM dining menus
+
+`GET /api/dining/menus` is read-only public information. The server selects today's date in `America/Chicago`, independently of `DEMO_DATE`, device time zone and AI settings. It fetches only the fixed Todd/Ellis Sodexo feeds; callers cannot supply a URL or hall ID. It does not use the database or Gemini.
+
+```json
+{"date":"2026-10-04","timezone":"America/Chicago","fetched_at":"2026-10-04T15:00:00Z","halls":[{"id":"todd","name":"Todd Dining Center","source_url":"https://ucmo.sodexomyway.com/en-us/locations/todd-dining-center-in-todd-hall","status":"AVAILABLE","message":null,"meals":[{"name":"Brunch","stations":[{"name":"Synthetic demo station","items":["Example breakfast bowl"]}]}]},{"id":"ellis","name":"Ellis Dining Center","source_url":"https://ucmo.sodexomyway.com/en-us/locations/ellis-dining-center","status":"EMPTY","message":"Sodexo has not published a menu for this day.","meals":[]}]}
+```
+
+This example is synthetic. `halls` always contains Todd then Ellis. Each hall is `AVAILABLE` with meals, `EMPTY` when no items are published, or `UNAVAILABLE` on an upstream network/configuration/format failure. EMPTY does not mean the hall is closed. EMPTY/UNAVAILABLE have empty `meals` and a user-readable `message`; AVAILABLE has `message: null`. One failing hall does not hide the other. Feed failures return 200 with these statuses so both hall results and official links remain usable. API/transport failures follow the existing error envelope.
+
+`fetched_at` is the server's check time, not a claim of when Sodexo last changed its menu. Complete responses are cached in memory for up to five minutes, keyed by campus date. Errors are retried on the next request; expired/yesterday's listings are never substituted. Responses use `Cache-Control: no-store` so the browser requests the current server result on refresh. Only station/item names are returned; ingredients, nutrition, allergens and hours remain on the linked official site. Fixture mode uses the separate, explicitly synthetic `dining_menus` example and never contacts Sodexo.
 
 ## Understanding
 Request:
