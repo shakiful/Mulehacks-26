@@ -5,6 +5,7 @@ import { createMockApi } from "../api/mock";
 import type { Understanding } from "../api/types";
 import { ApiProvider } from "../context/ApiContext";
 import { CreatePost } from "./CreatePost";
+vi.mock("./RideRoutePicker", () => import("../test/MockRideRoutePicker"));
 
 const context = { reference_time: "2026-10-03T16:00:00-05:00", timezone: "America/Chicago" };
 const study = (changes: Partial<Understanding> = {}): Understanding => ({
@@ -26,6 +27,33 @@ function setup(preview = study()) {
 }
 
 describe("conversational post clarification", () => {
+  it("requires two explicit map selections for an offer and keeps them through AI follow-up", async () => {
+    const preview = study({ category: "RIDE", intent: "OFFER", title: "Synthetic ride",
+      text: "Offering four seats", starts_at: null,
+      details: { origin: "Campus", destination: "Walmart", seats: 4, origin_point: null, destination_point: null } });
+    const { user, understand, createPost, onCreated } = setup(preview);
+    fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "2026-10-03" } });
+    fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "18:00" } });
+    await user.click(screen.getByRole("button", { name: "Confirm & post" }));
+    expect(createPost).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole("button", { name: "Select From point" }));
+    await user.click(screen.getByRole("button", { name: "Select To point" }));
+    // Leave a question for a sentence follow-up, after explicitly chosen map pins.
+    fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "" } });
+    understand.mockImplementation(async () => ({ ...preview, starts_at: "2026-10-03T19:00:00-05:00",
+      details: { origin: "Invented origin", destination: "Invented destination", seats: 4, origin_point: null, destination_point: null } }));
+    await user.type(screen.getByRole("textbox", { name: "Add missing details" }), "Tonight at seven pm.");
+    await user.click(screen.getByRole("button", { name: "Fill in my form" }));
+    await screen.findByText(/Your form is updated/);
+    expect(screen.getByRole("textbox", { name: "From" })).toHaveValue("Campus");
+    expect(screen.getByRole("textbox", { name: "To" })).toHaveValue("Walmart");
+    fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "2026-10-03" } });
+    await user.click(screen.getByRole("button", { name: "Confirm & post" }));
+    await waitFor(() => expect(onCreated).toHaveBeenCalledOnce());
+    expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ details: expect.objectContaining({
+      seats: 4, origin_point: { lat: 38.7625, lng: -93.7395 }, destination_point: { lat: 38.7905, lng: -93.7390 },
+    }) }));
+  });
   it("prefills all supplied facts and asks only for relevant missing information", async () => {
     const { user } = setup();
     expect(screen.getByRole("textbox", { name: "Course" })).toHaveValue("SQL");

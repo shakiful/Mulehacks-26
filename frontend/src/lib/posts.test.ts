@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { validatePost } from "./posts";
 import type { CreatePostInput } from "../api/types";
 
-const ride: CreatePostInput = {
+const ride = {
   category: "RIDE",
   intent: "REQUEST",
   title: "Walmart ride",
@@ -10,8 +10,9 @@ const ride: CreatePostInput = {
   location: null,
   starts_at: "2026-10-03T18:00:00-05:00",
   ends_at: null,
-  details: { origin: "UCM", destination: "Walmart", seats: 1, purpose: null },
-};
+  details: { origin: "UCM", destination: "Walmart", seats: 1, purpose: null,
+    origin_point: { lat: 38.7625, lng: -93.7395 }, destination_point: { lat: 38.7905, lng: -93.7390 } },
+} satisfies CreatePostInput;
 describe("confirmed post validation", () => {
   it("rejects invalid seats, missing routes, ambiguous dates, and invalid intervals", () => {
     expect(validatePost(ride)).toEqual([]);
@@ -19,7 +20,7 @@ describe("confirmed post validation", () => {
       ...ride,
       starts_at: "tomorrow",
       ends_at: "2026-10-03T17:00:00",
-      details: { origin: "", destination: "", seats: 0 },
+      details: { ...ride.details, origin: "", destination: "", seats: 0 },
     });
     expect(errors.map((error) => error.field)).toEqual(
       expect.arrayContaining([
@@ -63,6 +64,7 @@ describe("confirmed post validation", () => {
     const food: CreatePostInput = {
       ...ride,
       category: "RESTAURANT",
+      intent: "REQUEST",
       details: {
         restaurant: null,
         cuisine: "Indian",

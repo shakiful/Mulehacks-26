@@ -68,8 +68,9 @@ export function MatchesPage() {
         {isMock
           ? "Scores are illustrative fixture values. New posts have no scripted matches; real ranking needs the backend. "
           : ""}
-        An accepted connection records interest. Coordinate details together;
-        seats, orders, and payments are not reserved.
+        {data.post.category === "RIDE"
+          ? "Accepting a Ride connection reserves requested seats. Pending requests hold no seats. The offer stays open until full or marked filled; confirm the actual route together."
+          : "An accepted connection records interest. Coordinate details together; orders and payments are not reserved."}
       </p>
       {error !== null && (
         <div className="mb-5">
@@ -81,7 +82,7 @@ export function MatchesPage() {
           title="No compatible matches yet."
           description={
             isMock
-              ? "The mock replays the supplied SQL fixture match for post #42. New posts demonstrate the empty state."
+              ? "The mock replays the supplied Study and Ride fixtures. New posts demonstrate the empty state."
               : "Try again as more people post. You can review your post details for better matches."
           }
         />

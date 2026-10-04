@@ -178,7 +178,7 @@ describe("fixture mock behavior", () => {
     saved.title = "client mutation";
     input.details = { ...input.details, topic: "client mutation" } as typeof input.details;
     expect((await api.getPost(42)).title).toBe(fixtures.post_edit.request.title);
-    expect((await api.listPosts()).total).toBe(2);
+    expect((await api.listPosts()).total).toBe(fixtures.post_list.total);
     expect((await api.getMatches(42)).matches).toEqual([]);
   });
   it("rejects unauthorized, missing, invalid, recategorized, and closed post edits without changing data", async () => {
@@ -212,14 +212,13 @@ describe("fixture mock behavior", () => {
     expect(await api.listDemoUsers()).toEqual(fixtures.demo_users);
     expect(await api.listPosts()).toEqual(fixtures.post_list);
     expect(await api.listPosts({ category: "RIDE" })).toMatchObject({
-      items: [],
-      total: 0,
+      total: 4,
     });
     expect(
       await api.listPosts({ user_id: 2, limit: 1, offset: 0 }),
     ).toMatchObject({
       items: [fixtures.post_list.items[1]],
-      total: 1,
+      total: 2,
       limit: 1,
     });
     await expect(api.listPosts({ limit: 101 })).rejects.toMatchObject({
@@ -279,7 +278,7 @@ describe("fixture mock behavior", () => {
     });
     await api.updatePost(42, "COMPLETED");
     expect((await api.getMatches(42)).matches).toEqual([]);
-    expect((await api.listPosts()).items).toEqual([]);
+    expect((await api.listPosts({ category: "STUDY" })).items).toEqual([]);
   });
   it("enforces duplicate requests, recipient transitions, and terminal states", async () => {
     const { api, select } = setup();
@@ -326,6 +325,45 @@ describe("fixture mock behavior", () => {
     );
     expect((await api.listConnections("PENDING")).items).toEqual([]);
   });
+  it("reserves shared ride seats, retains a partial offer, and closes only when full", async () => {
+    const { api, select } = setup();
+    for (const [user, request, remaining] of [[1, 51, 3], [3, 53, 2], [4, 54, 0]]) {
+      select(user);
+      const connection = await api.createConnection(request, 52);
+      select(2);
+      const accepted = await api.updateConnection(connection.id, "ACCEPTED");
+      expect(accepted.reserved_seats).toBe(user === 4 ? 2 : 1);
+      expect((await api.getPost(52)).ride_availability?.remaining_seats).toBe(remaining);
+      expect((await api.getPost(52)).status).toBe(remaining ? "OPEN" : "COMPLETED");
+      expect((await api.getPost(request)).status).toBe("COMPLETED");
+    }
+  });
+  it("rejects a pending ride acceptance after the driver manually marks filled", async () => {
+    const { api, select } = setup();
+    const connection = await api.createConnection(51, 52);
+    select(2);
+    await api.updatePost(52, "COMPLETED");
+    await expect(api.updateConnection(connection.id, "ACCEPTED")).rejects.toMatchObject({ status: 409 });
+    expect((await api.getPost(52)).ride_availability?.reserved_seats).toBe(0);
+  });
+  it("protects reserved routes and counts during mock edits, and fills at reserved capacity", async () => {
+    const { api, select } = setup();
+    select(4);
+    const connection = await api.createConnection(54, 52);
+    select(2);
+    await api.updateConnection(connection.id, 'ACCEPTED');
+    const offer = await api.getPost(52);
+    if (offer.category !== 'RIDE') throw new Error('Expected fixture ride');
+    const input: CreatePostInput = { category: 'RIDE', intent: 'OFFER', title: offer.title, text: offer.text,
+      location: offer.location, starts_at: offer.starts_at, ends_at: offer.ends_at, details: offer.details };
+    await expect(api.editPost(52, { ...input, details: { ...input.details, seats: 1 } })).rejects.toMatchObject({ status: 409 });
+    await expect(api.editPost(52, { ...input, details: { ...input.details, origin: 'Other pickup' } })).rejects.toMatchObject({ status: 409 });
+    expect(await api.getPost(52)).toEqual(offer);
+    const larger = await api.editPost(52, { ...input, details: { ...input.details, seats: 5 } });
+    expect(larger.ride_availability).toEqual({ total_seats: 5, reserved_seats: 2, remaining_seats: 3 });
+    expect(larger.status).toBe('OPEN');
+    expect((await api.editPost(52, { ...input, details: { ...input.details, seats: 2 } })).status).toBe('COMPLETED');
+  });
   it("honors category hints and asks for dates and routes without guessing relative times", async () => {
     const { api } = setup();
     const preview = await api.understand({
@@ -339,7 +377,7 @@ describe("fixture mock behavior", () => {
       starts_at: null,
       ends_at: null,
       location: null,
-      missing_fields: ["details.origin", "details.destination", "starts_at"],
+      missing_fields: ["details.origin_point", "details.destination_point", "details.origin", "details.destination", "starts_at"],
     });
     const security = await api.understand({
       text: "Your account expires today",

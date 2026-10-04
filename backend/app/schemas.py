@@ -43,9 +43,22 @@ class InputModel(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
 
+class GeoPoint(InputModel):
+    lat: Annotated[float, Field(strict=True, ge=-90, le=90, allow_inf_nan=False)]
+    lng: Annotated[float, Field(strict=True, ge=-180, le=180, allow_inf_nan=False)]
+
+
+class RideAvailability(BaseModel):
+    total_seats: int
+    reserved_seats: int
+    remaining_seats: int
+
+
 class RideDetails(InputModel):
     origin: Nonempty
     destination: Nonempty
+    origin_point: GeoPoint
+    destination_point: GeoPoint
     seats: PositiveInt
     purpose: str | None = None
 
@@ -159,6 +172,7 @@ class PostResponse(BaseModel):
     status: PostStatus
     created_at: AwareDatetime
     updated_at: AwareDatetime
+    ride_availability: RideAvailability | None = None
 
 
 class PostList(BaseModel):
@@ -222,6 +236,13 @@ class Understanding(BaseModel):
             raise ValueError('Public previews require intent and category details')
         if self.category in ('RIDE', 'RESTAURANT') and self.intent == 'PARTNER':
             raise ValueError('PARTNER is unsupported for this category')
+        if self.category == 'RIDE':
+            # Names may come from AI. Coordinates must be explicitly selected
+            # by the person on the map, never invented by a language model.
+            for name in ('origin_point', 'destination_point'):
+                self.details[name] = None
+                if 'details.' + name not in self.missing_fields:
+                    self.missing_fields.append('details.' + name)
         for name, value in self.details.items():
             if name not in schema.model_fields:
                 raise ValueError('Unexpected category detail')
@@ -283,6 +304,7 @@ class ConnectionResponse(BaseModel):
     status: ConnectionStatus
     created_at: AwareDatetime
     updated_at: AwareDatetime
+    reserved_seats: int = 0
 
 
 class ConnectionList(BaseModel):

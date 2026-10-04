@@ -19,7 +19,7 @@ Students have needs and useful skills but struggle to discover compatible people
 ## Modules
 | Module | Required fields / behavior |
 |---|---|
-| Ride | REQUEST or OFFER, origin, destination, starts_at, seats; seats means needed for REQUEST and available for OFFER. Opposite intent only; enough offered seats required. |
+| Ride | REQUEST/OFFER with required From/To map pins, labels, starts_at and seats needed/total offered. Match pickups/destinations within 5 km each and departures within 60 minutes. Acceptance reserves seats, completing the request; offers remain open until full or the driver marks filled. |
 | Study | REQUEST, OFFER or PARTNER; course/topic, mode, optional location and availability. REQUEST matches OFFER, PARTNER matches PARTNER. |
 | Food Connect | API category RESTAURANT; REQUEST to join or OFFER to host; restaurant/cuisine, DINING/GROUP_ORDER/TRIP, location/time and group_size. Connection does not place an order or reserve capacity. |
 | Community | REQUEST, OFFER or PARTNER; subcategory such as BORROW_LEND, CAMPUS_HELP, ACTIVITY, MOVING, SHOPPING, NEW_STUDENT or OTHER. Reuse post cards. |
@@ -31,7 +31,7 @@ Home has a natural-language input and five category shortcuts. Shared cards show
 Study/Security pages are Person 2's feature responsibility; Person 1 supplies shared layout and components. Decide page filenames before either person edits shared frontend files.
 
 ## Scope boundaries
-Demo identity replaces authentication for the MVP; it is only suitable for a local prototype. Defer password login, university SSO, trust scoring, payments, live GPS, messaging, booking, restaurant ordering, mobile apps and vector database infrastructure. Maps are optional; text locations are sufficient. Do not display unverifiable trust badges.
+Demo identity replaces authentication for the MVP; it is only suitable for a local prototype. Defer password login, university SSO, trust scoring, payments, live GPS, messaging, transport booking guarantees, restaurant ordering, mobile apps and vector database infrastructure. Ride maps and local seat capacity tracking were explicitly requested on 2026-10-04; both requesters and drivers must select From/To pins. Use MapTiler when configured, otherwise OpenFreeMap through MapLibre. Road routing, geocoding/search and accepted-booking cancellation/reopening remain deferred. Do not display unverifiable trust badges.
 
 ## AI responsibilities
 - Classify into five categories; manual category overrides win.

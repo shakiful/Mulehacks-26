@@ -15,7 +15,20 @@
         "source_url": "https://ucmo.sodexomyway.com/en-us/locations/todd-dining-center-in-todd-hall",
         "status": "AVAILABLE",
         "message": null,
-        "meals": [{ "name": "Brunch", "stations": [{ "name": "Synthetic demo station", "items": ["Example breakfast bowl", "Example fruit cup"] }] }]
+        "meals": [
+          {
+            "name": "Brunch",
+            "stations": [
+              {
+                "name": "Synthetic demo station",
+                "items": [
+                  "Example breakfast bowl",
+                  "Example fruit cup"
+                ]
+              }
+            ]
+          }
+        ]
       },
       {
         "id": "ellis",
@@ -23,7 +36,19 @@
         "source_url": "https://ucmo.sodexomyway.com/en-us/locations/ellis-dining-center",
         "status": "AVAILABLE",
         "message": null,
-        "meals": [{ "name": "Dinner", "stations": [{ "name": "Synthetic demo station", "items": ["Example vegetable pasta"] }] }]
+        "meals": [
+          {
+            "name": "Dinner",
+            "stations": [
+              {
+                "name": "Synthetic demo station",
+                "items": [
+                  "Example vegetable pasta"
+                ]
+              }
+            ]
+          }
+        ]
       }
     ]
   },
@@ -36,6 +61,14 @@
       {
         "id": 2,
         "name": "Sarah (demo)"
+      },
+      {
+        "id": 3,
+        "name": "Alex (demo)"
+      },
+      {
+        "id": 4,
+        "name": "Jamie (demo)"
       }
     ]
   },
@@ -60,7 +93,8 @@
     },
     "status": "OPEN",
     "created_at": "2026-10-03T12:00:00Z",
-    "updated_at": "2026-10-03T12:00:00Z"
+    "updated_at": "2026-10-03T12:00:00Z",
+    "ride_availability": null
   },
   "post_list": {
     "items": [
@@ -85,7 +119,8 @@
         },
         "status": "OPEN",
         "created_at": "2026-10-03T12:00:00Z",
-        "updated_at": "2026-10-03T12:00:00Z"
+        "updated_at": "2026-10-03T12:00:00Z",
+        "ride_availability": null
       },
       {
         "id": 7,
@@ -108,10 +143,143 @@
         },
         "status": "OPEN",
         "created_at": "2026-10-03T12:00:00Z",
-        "updated_at": "2026-10-03T12:00:00Z"
+        "updated_at": "2026-10-03T12:00:00Z",
+        "ride_availability": null
+      },
+      {
+        "id": 51,
+        "author": {
+          "id": 1,
+          "name": "Rafi (demo)"
+        },
+        "category": "RIDE",
+        "intent": "REQUEST",
+        "title": "Campus ride for profile 1 (synthetic)",
+        "text": "Synthetic pinned ride for the shared-seat demo.",
+        "status": "OPEN",
+        "location": null,
+        "starts_at": "2026-10-03T18:00:00-05:00",
+        "ends_at": null,
+        "details": {
+          "origin": "Campus pickup (synthetic)",
+          "destination": "Walmart dropoff (synthetic)",
+          "origin_point": {
+            "lat": 38.7625,
+            "lng": -93.7395
+          },
+          "destination_point": {
+            "lat": 38.7905,
+            "lng": -93.739
+          },
+          "seats": 1,
+          "purpose": null
+        },
+        "created_at": "2026-10-03T21:30:00Z",
+        "updated_at": "2026-10-03T21:30:00Z",
+        "ride_availability": null
+      },
+      {
+        "id": 52,
+        "author": {
+          "id": 2,
+          "name": "Sarah (demo)"
+        },
+        "category": "RIDE",
+        "intent": "OFFER",
+        "title": "Four-seat campus ride (synthetic)",
+        "text": "Synthetic pinned ride for the shared-seat demo.",
+        "status": "OPEN",
+        "location": null,
+        "starts_at": "2026-10-03T18:00:00-05:00",
+        "ends_at": null,
+        "details": {
+          "origin": "Campus pickup (synthetic)",
+          "destination": "Walmart dropoff (synthetic)",
+          "origin_point": {
+            "lat": 38.7625,
+            "lng": -93.7395
+          },
+          "destination_point": {
+            "lat": 38.7905,
+            "lng": -93.739
+          },
+          "seats": 4,
+          "purpose": null
+        },
+        "created_at": "2026-10-03T21:30:00Z",
+        "updated_at": "2026-10-03T21:30:00Z",
+        "ride_availability": {
+          "total_seats": 4,
+          "reserved_seats": 0,
+          "remaining_seats": 4
+        }
+      },
+      {
+        "id": 53,
+        "author": {
+          "id": 3,
+          "name": "Alex (demo)"
+        },
+        "category": "RIDE",
+        "intent": "REQUEST",
+        "title": "Campus ride for profile 3 (synthetic)",
+        "text": "Synthetic pinned ride for the shared-seat demo.",
+        "status": "OPEN",
+        "location": null,
+        "starts_at": "2026-10-03T18:00:00-05:00",
+        "ends_at": null,
+        "details": {
+          "origin": "Campus pickup (synthetic)",
+          "destination": "Walmart dropoff (synthetic)",
+          "origin_point": {
+            "lat": 38.7625,
+            "lng": -93.7395
+          },
+          "destination_point": {
+            "lat": 38.7905,
+            "lng": -93.739
+          },
+          "seats": 1,
+          "purpose": null
+        },
+        "created_at": "2026-10-03T21:30:00Z",
+        "updated_at": "2026-10-03T21:30:00Z",
+        "ride_availability": null
+      },
+      {
+        "id": 54,
+        "author": {
+          "id": 4,
+          "name": "Jamie (demo)"
+        },
+        "category": "RIDE",
+        "intent": "REQUEST",
+        "title": "Campus ride for profile 4 (synthetic)",
+        "text": "Synthetic pinned ride for the shared-seat demo.",
+        "status": "OPEN",
+        "location": null,
+        "starts_at": "2026-10-03T18:00:00-05:00",
+        "ends_at": null,
+        "details": {
+          "origin": "Campus pickup (synthetic)",
+          "destination": "Walmart dropoff (synthetic)",
+          "origin_point": {
+            "lat": 38.7625,
+            "lng": -93.7395
+          },
+          "destination_point": {
+            "lat": 38.7905,
+            "lng": -93.739
+          },
+          "seats": 2,
+          "purpose": null
+        },
+        "created_at": "2026-10-03T21:30:00Z",
+        "updated_at": "2026-10-03T21:30:00Z",
+        "ride_availability": null
       }
     ],
-    "total": 2,
+    "total": 6,
     "limit": 20,
     "offset": 0
   },
@@ -141,7 +309,8 @@
           },
           "status": "OPEN",
           "created_at": "2026-10-03T12:00:00Z",
-          "updated_at": "2026-10-03T12:00:00Z"
+          "updated_at": "2026-10-03T12:00:00Z",
+          "ride_availability": null
         },
         "score": 89.4,
         "reasons": [
@@ -166,7 +335,8 @@
     "target_post_id": 7,
     "status": "PENDING",
     "created_at": "2026-10-03T21:30:00Z",
-    "updated_at": "2026-10-03T21:30:00Z"
+    "updated_at": "2026-10-03T21:30:00Z",
+    "reserved_seats": 0
   },
   "security": {
     "risk_level": "HIGH",
@@ -234,7 +404,310 @@
       },
       "status": "OPEN",
       "created_at": "2026-10-03T12:00:00Z",
-      "updated_at": "2026-10-04T00:00:00Z"
+      "updated_at": "2026-10-04T00:00:00Z",
+      "ride_availability": null
     }
-  }
+  },
+  "ride_matches": [
+    {
+      "post_id": 51,
+      "matching_mode": "HEURISTIC",
+      "matches": [
+        {
+          "post": {
+            "id": 52,
+            "author": {
+              "id": 2,
+              "name": "Sarah (demo)"
+            },
+            "category": "RIDE",
+            "intent": "OFFER",
+            "title": "Four-seat campus ride (synthetic)",
+            "text": "Synthetic pinned ride for the shared-seat demo.",
+            "status": "OPEN",
+            "location": null,
+            "starts_at": "2026-10-03T18:00:00-05:00",
+            "ends_at": null,
+            "details": {
+              "origin": "Campus pickup (synthetic)",
+              "destination": "Walmart dropoff (synthetic)",
+              "origin_point": {
+                "lat": 38.7625,
+                "lng": -93.7395
+              },
+              "destination_point": {
+                "lat": 38.7905,
+                "lng": -93.739
+              },
+              "seats": 4,
+              "purpose": null
+            },
+            "created_at": "2026-10-03T21:30:00Z",
+            "updated_at": "2026-10-03T21:30:00Z",
+            "ride_availability": {
+              "total_seats": 4,
+              "reserved_seats": 0,
+              "remaining_seats": 4
+            }
+          },
+          "score": 100,
+          "reasons": [
+            "Pickup points are 0.00 km apart",
+            "Destination points are 0.00 km apart",
+            "Departures are 0 minutes apart",
+            "4 remaining seats cover the requested seats"
+          ],
+          "warnings": [
+            "Distances are straight-line measurements, not road routes or driving times."
+          ]
+        }
+      ]
+    },
+    {
+      "post_id": 52,
+      "matching_mode": "HEURISTIC",
+      "matches": [
+        {
+          "post": {
+            "id": 51,
+            "author": {
+              "id": 1,
+              "name": "Rafi (demo)"
+            },
+            "category": "RIDE",
+            "intent": "REQUEST",
+            "title": "Campus ride for profile 1 (synthetic)",
+            "text": "Synthetic pinned ride for the shared-seat demo.",
+            "status": "OPEN",
+            "location": null,
+            "starts_at": "2026-10-03T18:00:00-05:00",
+            "ends_at": null,
+            "details": {
+              "origin": "Campus pickup (synthetic)",
+              "destination": "Walmart dropoff (synthetic)",
+              "origin_point": {
+                "lat": 38.7625,
+                "lng": -93.7395
+              },
+              "destination_point": {
+                "lat": 38.7905,
+                "lng": -93.739
+              },
+              "seats": 1,
+              "purpose": null
+            },
+            "created_at": "2026-10-03T21:30:00Z",
+            "updated_at": "2026-10-03T21:30:00Z",
+            "ride_availability": null
+          },
+          "score": 100,
+          "reasons": [
+            "Pickup points are 0.00 km apart",
+            "Destination points are 0.00 km apart",
+            "Departures are 0 minutes apart",
+            "4 remaining seats cover the requested seats"
+          ],
+          "warnings": [
+            "Distances are straight-line measurements, not road routes or driving times."
+          ]
+        },
+        {
+          "post": {
+            "id": 53,
+            "author": {
+              "id": 3,
+              "name": "Alex (demo)"
+            },
+            "category": "RIDE",
+            "intent": "REQUEST",
+            "title": "Campus ride for profile 3 (synthetic)",
+            "text": "Synthetic pinned ride for the shared-seat demo.",
+            "status": "OPEN",
+            "location": null,
+            "starts_at": "2026-10-03T18:00:00-05:00",
+            "ends_at": null,
+            "details": {
+              "origin": "Campus pickup (synthetic)",
+              "destination": "Walmart dropoff (synthetic)",
+              "origin_point": {
+                "lat": 38.7625,
+                "lng": -93.7395
+              },
+              "destination_point": {
+                "lat": 38.7905,
+                "lng": -93.739
+              },
+              "seats": 1,
+              "purpose": null
+            },
+            "created_at": "2026-10-03T21:30:00Z",
+            "updated_at": "2026-10-03T21:30:00Z",
+            "ride_availability": null
+          },
+          "score": 100,
+          "reasons": [
+            "Pickup points are 0.00 km apart",
+            "Destination points are 0.00 km apart",
+            "Departures are 0 minutes apart",
+            "4 remaining seats cover the requested seats"
+          ],
+          "warnings": [
+            "Distances are straight-line measurements, not road routes or driving times."
+          ]
+        },
+        {
+          "post": {
+            "id": 54,
+            "author": {
+              "id": 4,
+              "name": "Jamie (demo)"
+            },
+            "category": "RIDE",
+            "intent": "REQUEST",
+            "title": "Campus ride for profile 4 (synthetic)",
+            "text": "Synthetic pinned ride for the shared-seat demo.",
+            "status": "OPEN",
+            "location": null,
+            "starts_at": "2026-10-03T18:00:00-05:00",
+            "ends_at": null,
+            "details": {
+              "origin": "Campus pickup (synthetic)",
+              "destination": "Walmart dropoff (synthetic)",
+              "origin_point": {
+                "lat": 38.7625,
+                "lng": -93.7395
+              },
+              "destination_point": {
+                "lat": 38.7905,
+                "lng": -93.739
+              },
+              "seats": 2,
+              "purpose": null
+            },
+            "created_at": "2026-10-03T21:30:00Z",
+            "updated_at": "2026-10-03T21:30:00Z",
+            "ride_availability": null
+          },
+          "score": 100,
+          "reasons": [
+            "Pickup points are 0.00 km apart",
+            "Destination points are 0.00 km apart",
+            "Departures are 0 minutes apart",
+            "4 remaining seats cover the requested seats"
+          ],
+          "warnings": [
+            "Distances are straight-line measurements, not road routes or driving times."
+          ]
+        }
+      ]
+    },
+    {
+      "post_id": 53,
+      "matching_mode": "HEURISTIC",
+      "matches": [
+        {
+          "post": {
+            "id": 52,
+            "author": {
+              "id": 2,
+              "name": "Sarah (demo)"
+            },
+            "category": "RIDE",
+            "intent": "OFFER",
+            "title": "Four-seat campus ride (synthetic)",
+            "text": "Synthetic pinned ride for the shared-seat demo.",
+            "status": "OPEN",
+            "location": null,
+            "starts_at": "2026-10-03T18:00:00-05:00",
+            "ends_at": null,
+            "details": {
+              "origin": "Campus pickup (synthetic)",
+              "destination": "Walmart dropoff (synthetic)",
+              "origin_point": {
+                "lat": 38.7625,
+                "lng": -93.7395
+              },
+              "destination_point": {
+                "lat": 38.7905,
+                "lng": -93.739
+              },
+              "seats": 4,
+              "purpose": null
+            },
+            "created_at": "2026-10-03T21:30:00Z",
+            "updated_at": "2026-10-03T21:30:00Z",
+            "ride_availability": {
+              "total_seats": 4,
+              "reserved_seats": 0,
+              "remaining_seats": 4
+            }
+          },
+          "score": 100,
+          "reasons": [
+            "Pickup points are 0.00 km apart",
+            "Destination points are 0.00 km apart",
+            "Departures are 0 minutes apart",
+            "4 remaining seats cover the requested seats"
+          ],
+          "warnings": [
+            "Distances are straight-line measurements, not road routes or driving times."
+          ]
+        }
+      ]
+    },
+    {
+      "post_id": 54,
+      "matching_mode": "HEURISTIC",
+      "matches": [
+        {
+          "post": {
+            "id": 52,
+            "author": {
+              "id": 2,
+              "name": "Sarah (demo)"
+            },
+            "category": "RIDE",
+            "intent": "OFFER",
+            "title": "Four-seat campus ride (synthetic)",
+            "text": "Synthetic pinned ride for the shared-seat demo.",
+            "status": "OPEN",
+            "location": null,
+            "starts_at": "2026-10-03T18:00:00-05:00",
+            "ends_at": null,
+            "details": {
+              "origin": "Campus pickup (synthetic)",
+              "destination": "Walmart dropoff (synthetic)",
+              "origin_point": {
+                "lat": 38.7625,
+                "lng": -93.7395
+              },
+              "destination_point": {
+                "lat": 38.7905,
+                "lng": -93.739
+              },
+              "seats": 4,
+              "purpose": null
+            },
+            "created_at": "2026-10-03T21:30:00Z",
+            "updated_at": "2026-10-03T21:30:00Z",
+            "ride_availability": {
+              "total_seats": 4,
+              "reserved_seats": 0,
+              "remaining_seats": 4
+            }
+          },
+          "score": 100,
+          "reasons": [
+            "Pickup points are 0.00 km apart",
+            "Destination points are 0.00 km apart",
+            "Departures are 0 minutes apart",
+            "4 remaining seats cover the requested seats"
+          ],
+          "warnings": [
+            "Distances are straight-line measurements, not road routes or driving times."
+          ]
+        }
+      ]
+    }
+  ]
 }

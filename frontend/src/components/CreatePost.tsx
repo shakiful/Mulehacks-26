@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { ApiError } from "../api/errors";
 import type {
@@ -8,6 +8,8 @@ import type {
   Intent,
   Post,
   Understanding,
+  DraftDetails,
+  GeoPoint,
 } from "../api/types";
 import { useApi } from "../context/ApiContext";
 import { blankDetails, categoryNames, validatePost } from "../lib/posts";
@@ -16,6 +18,7 @@ import { CAMPUS_TIME_ZONE, fromTimestamp, resolveDateTime, type DateTimeDraft } 
 import { ErrorState } from "./States";
 import { Field } from "./Field";
 import { DateTimeFields } from "./DateTimeFields";
+const RideRoutePicker = lazy(() => import("./RideRoutePicker"));
 
 export function CreatePost({
   category = "RIDE",
@@ -50,7 +53,7 @@ export function CreatePost({
   const startsAt = startResolution.timestamp ?? "";
   const endsAt = endResolution.timestamp ?? "";
   const [details, setDetails] = useState<
-    Record<string, string | number | null>
+    DraftDetails
   >(initialPost ? { ...initialPost.details } : preview?.details ?? blankDetails(selectedCategory));
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [requestError, setRequestError] = useState<unknown>(null);
@@ -70,7 +73,7 @@ export function CreatePost({
   }) : [];
   const fieldError = (name: string) =>
     errors.find((error) => error.field === name)?.message;
-  const changeDetail = (key: string, value: string | number | null) => {
+  const changeDetail = (key: string, value: string | number | GeoPoint | null) => {
     dirty.current.add(`details.${key}`);
     setDetails((current) => ({ ...current, [key]: value }));
   };
@@ -141,7 +144,7 @@ export function CreatePost({
           type={numeric ? "number" : "text"}
           min={numeric ? 1 : undefined}
           step={numeric ? 1 : undefined}
-          value={details[name] ?? ""}
+          value={typeof details[name] === "object" ? "" : details[name] ?? ""}
           onChange={(event) =>
             changeDetail(
               name,
@@ -162,7 +165,7 @@ export function CreatePost({
       {(props) => (
         <select
           {...props}
-          value={details[name] ?? ""}
+          value={typeof details[name] === "object" ? "" : details[name] ?? ""}
           onChange={(event) => changeDetail(name, event.target.value || null)}
         >
           {nullable && <option value="">Unspecified</option>}
@@ -279,6 +282,11 @@ export function CreatePost({
         </section>
       )}
       {refineMessage && <p role="status" className="notice mt-4">{refineMessage}</p>}
+      {Boolean(initialPost?.ride_availability?.reserved_seats) && (
+        <p className="notice mt-4">Passengers are already accepted. Keep the same From/To pins, labels and times.
+          You can edit the description or change capacity above the reserved count.
+          Setting capacity to the reserved count marks this ride filled.</p>
+      )}
       {errors.length > 0 && (
         <div className="error-panel mt-5" role="alert">
           Correct the highlighted fields before {initialPost ? "saving" : "posting"}.
@@ -365,6 +373,22 @@ export function CreatePost({
           <>
             {detailField("origin", "From")}
             {detailField("destination", "To")}
+            <div className="md:col-span-2">
+              <Suspense fallback={<p role="status">Loading the route map…</p>}>
+                <RideRoutePicker
+                  origin={typeof details.origin_point === "object" ? details.origin_point : null}
+                  destination={typeof details.destination_point === "object" ? details.destination_point : null}
+                  disabled={pending || refining}
+                  errors={[fieldError("details.origin_point"), fieldError("details.destination_point")].filter(Boolean) as string[]}
+                  onSelect={(field, point) => {
+                    changeDetail(field, point);
+                    const label = field === "origin_point" ? "origin" : "destination";
+                    dirty.current.add(`details.${label}`);
+                    if (!details[label]) changeDetail(label, `${label === "origin" ? "Pickup" : "Destination"} (${point.lat.toFixed(5)}, ${point.lng.toFixed(5)})`);
+                  }}
+                />
+              </Suspense>
+            </div>
             {detailField(
               "seats",
               intent === "REQUEST" ? "Seats needed" : "Seats available",

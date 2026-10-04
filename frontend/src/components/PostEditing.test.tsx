@@ -6,11 +6,13 @@ import { ApiError } from "../api/errors";
 import type { CreatePostInput, Post } from "../api/types";
 import { ApiProvider } from "../context/ApiContext";
 import { CreatePost } from "./CreatePost";
+vi.mock("./RideRoutePicker", () => import("../test/MockRideRoutePicker"));
 
 const common = { title: "Synthetic original post", text: "Synthetic editable description",
   location: "Library", starts_at: "2026-10-03T18:00:00-05:00", ends_at: "2026-10-03T19:00:00-05:00" };
 const cases: [string, CreatePostInput, string, string][] = [
-  ["Ride", { ...common, category: "RIDE", intent: "REQUEST", details: { origin: "UCM", destination: "Walmart", seats: 1, purpose: null } }, "To", "Target"],
+  ["Ride", { ...common, category: "RIDE", intent: "REQUEST", details: { origin: "UCM", destination: "Walmart", seats: 1, purpose: null,
+    origin_point: { lat: 38.7625, lng: -93.7395 }, destination_point: { lat: 38.7905, lng: -93.7390 } } }, "To", "Target"],
   ["Study", { ...common, category: "STUDY", intent: "PARTNER", details: { course: "SQL", topic: "joins", mode: "IN_PERSON", skill_level: "BEGINNER" } }, "Topic", "indexes"],
   ["Food", { ...common, category: "RESTAURANT", intent: "OFFER", details: { restaurant: "Example diner", cuisine: null, activity_type: "DINING", group_size: 2 } }, "Restaurant", "Campus cafe"],
   ["Community", { ...common, category: "COMMUNITY", intent: "OFFER", details: { subcategory: "BORROW_LEND", item: "Calculator", activity: null } }, "Item (optional)", "Scientific calculator"],

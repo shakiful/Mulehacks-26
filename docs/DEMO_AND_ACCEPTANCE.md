@@ -7,7 +7,7 @@ Seed ride offers to Walmart at 17:45 and 18:15 with enough seats, a SQL/relation
 ## Two-minute demo
 1. Rafi requests a UCM → Walmart ride at 18:00. Confirm extraction and see compatible offered rides with reasons.
 2. Request help with SQL joins; show relational-database tutor and explain semantic ranking.
-3. Send a connection request; switch to Sarah's demo profile and accept it. Show acceptance as interest, with no seat-reservation claim.
+3. Select From/To pins for the ride, send a connection request, switch to the driver profile and accept it. Show the reserved seat and the remaining capacity. A partially occupied offer remains OPEN; the last accepted seats or Mark filled closes it. Study/Food/Community acceptance still records interest.
 4. Paste a synthetic university-account-expiry message with a login-like URL. Show evidence-based HIGH risk assessment and its limitations.
 
 ## Required checks after implementation

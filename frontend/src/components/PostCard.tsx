@@ -12,7 +12,7 @@ export function PostCard({
   children?: ReactNode;
 }) {
   const detailItems = Object.entries(post.details).filter(
-    ([, value]) => value !== null && value !== "",
+    ([key, value]) => value !== null && value !== "" && !key.endsWith("_point"),
   );
   return (
     <article className="post-card">
@@ -44,6 +44,15 @@ export function PostCard({
           </div>
         ))}
       </dl>
+      {post.ride_availability && (
+        <p className="notice mt-4">
+          {post.ride_availability.remaining_seats} of {post.ride_availability.total_seats} seats remaining
+          {" · "}{post.ride_availability.reserved_seats} reserved
+        </p>
+      )}
+      {post.category === "RIDE" && (!post.details.origin_point || !post.details.destination_point) && (
+        <p className="mt-3 text-xs text-stone-500">Older ride: edit your open post to add From/To map pins, or create a new mapped ride.</p>
+      )}
       {(post.location || post.starts_at) && (
         <div className="mt-4 flex flex-wrap gap-3 text-xs text-stone-500">
           {post.location && (
