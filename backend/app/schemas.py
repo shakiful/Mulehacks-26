@@ -260,3 +260,21 @@ class ConnectionResponse(BaseModel):
 
 class ConnectionList(BaseModel):
     items: list[ConnectionResponse]
+
+
+class SecurityInput(InputModel):
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=8000)]
+
+
+class SecurityReason(InputModel):
+    code: Annotated[str, StringConstraints(min_length=1, max_length=40)]
+    description: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+
+
+class SecurityResult(InputModel):
+    risk_level: Literal['LOW', 'MEDIUM', 'HIGH']
+    summary: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+    reasons: list[SecurityReason] = Field(max_length=10)
+    recommendation: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
+    limitations: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
+    analysis_mode: Literal['LLM', 'HEURISTIC']

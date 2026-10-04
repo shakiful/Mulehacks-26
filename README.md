@@ -5,7 +5,7 @@
 An AI-powered student connection platform for a hackathon themed **Connection**.
 Students describe a need; ConnectHub extracts details and finds compatible people or resources. Suspicious messages go to a private risk analyzer.
 
-**Status:** The React frontend and FastAPI/SQLite backend support sentence → preview → follow-up details → confirmed post → matches → connection request → recipient acceptance. Demo profiles and seed posts are synthetic. Gemini is the default for understanding and semantic embeddings; unavailable providers use a labeled heuristic fallback. OpenAI embeddings remain available. A versioned SQLite cache supports semantic ranking. The private Security analyzer remains pending; security-classified previews open the existing private placeholder.
+**Status:** The React frontend and FastAPI/SQLite backend support sentence → preview → follow-up details → confirmed post → matches → connection request → recipient acceptance. Demo profiles and seed posts are synthetic. Gemini is the default for understanding, security assessment and semantic embeddings; unavailable providers use a labeled heuristic fallback. OpenAI embeddings remain available. A versioned SQLite cache supports semantic ranking. The private Security page assesses pasted text without saving it or visiting submitted links.
 
 ## Shared context
 - [Product scope](docs/PROJECT_SPEC.md)
@@ -37,7 +37,7 @@ Mock data comes directly from `docs/fixtures/api_examples.json`. Dates and score
 
 To demonstrate connections: select **Rafi (demo)**, open **My posts**, find matches for the SQL fixture post #42, and request Sarah's tutoring offer. Select **Sarah (demo)**, open **Connections**, and accept or decline. Acceptance records interest only. It does not reserve seats, place orders, or close posts. Each author can mark their own post completed.
 
-Person 2 owns `frontend/src/pages/StudyPage.tsx` (`/study`) and `frontend/src/pages/SecurityPage.tsx` (`/security`). They should use `useApi()` from the shared context, the existing form/card components, and `useResource()` for request states. The Security page is a placeholder; security-classified previews route there without publishing the text. The mock security API returns a clearly labeled canned risk response, never an assessment of the submitted content.
+Person 2 owns `frontend/src/pages/StudyPage.tsx` (`/study`) and `frontend/src/pages/SecurityPage.tsx` (`/security`). They use `useApi()` and shared UI components. The Security page supports private assessment; security-classified dashboard previews open it without carrying text in browser history or publishing it. Paste the text there to request an assessment. The mock security API returns a clearly labeled canned risk response, never an assessment of the submitted content.
 
 ## Switch to the real backend
 
@@ -50,9 +50,9 @@ VITE_API_BASE_URL=http://localhost:8000/api
 
 Restart Vite after changing these values. One typed API interface covers both adapters; no page changes are required. The live adapter follows `docs/API_CONTRACT.md`, sends `X-Demo-User-Id` on protected operations, and uses the standard error envelope for form feedback. Only public configuration belongs in VITE variables.
 
-The backend supplies the contracted health, demo profiles, posts, understanding, matches, and connections endpoints. CORS allows `http://localhost:5173` and `X-Demo-User-Id`. The shared live adapter works without frontend changes. The API contract and fixtures are unchanged. `/api` is a route prefix; open `/docs` for the interactive API or `/api/health` for a health check.
+The backend supplies the contracted health, demo profiles, posts, understanding, matches, connections and `/security/analyze` endpoints. CORS allows `http://localhost:5173` and `X-Demo-User-Id`. Existing API types and adapters support the Security page. The API contract and fixtures are unchanged. `/api` is a route prefix; open `/docs` for the interactive API or `/api/health` for a health check.
 
-Frontend validation: 30 passing tests, TypeScript checks, and a production build. Tests cover the live adapter's routes/headers/bodies and errors, fixture ownership/connections, profile switching, request states, editable previews, follow-up autofill with manual-edit preservation, explicit mock selection, and private Security routing. Backend validation: 206 tests cover post validation, repeatable seeding, CORS/errors, relative times and DST clarification, word-number clocks and ranges, Gemini-first configuration and recovery after fallback, provider output validation, matching gates, connection permissions, semantic weighting and versioned caches. Live browser checks verified a ride request through recipient acceptance and a Gemini SQL preview refined by a follow-up sentence into location, meeting mode and a start/end interval. Automated provider tests use controlled vectors and HTTP responses and never require paid calls. An explicit live Google check on October 3, 2026 produced an LLM SQL preview and three 768-dimensional vectors: the SQL/relational-database example had cosine similarity 0.8267 versus 0.7385 for physics. These are synthetic smoke checks, not a model-quality benchmark.
+Frontend validation: 37 passing tests, TypeScript checks, and a production build. Tests cover API adapters, fixture connections, profile switching, request states, preview/follow-up autofill, explicit mock selection, private Security routing, risk rendering, validation, clearing and late-response privacy. Backend validation: 255 tests cover posts, repeatable seeds, CORS/errors, time clarification, Gemini configuration/recovery, output validation, matching, connections and versioned caches. The 49 Security checks cover input/auth, observed risk signals, URL structure, malformed or invented provider evidence, failure/recovery, no content logging and read-only database access. Live browser checks verified a ride through acceptance, SQL preview/follow-up autofill, and HIGH-risk Gemini assessment of a synthetic account-expiry/login lure. Direct Gemini checks returned LOW for an ordinary study invitation and security education. Automated tests never require paid calls. An earlier synthetic Google embedding check produced cosine similarity 0.8267 for SQL/relational-database relevance versus 0.7385 for physics with 768-dimensional vectors. These are smoke checks, not an accuracy benchmark.
 
 ## Backend local development
 Python backend: FastAPI + SQLAlchemy + SQLite. Frontend: React + Vite + Tailwind.
@@ -101,6 +101,16 @@ Follow-up answers reuse `/api/understand` with the original reference time/timez
 
 The [Gemini embedding adapter](https://ai.google.dev/api/embeddings) supports `gemini-embedding-001` with `SEMANTIC_SIMILARITY` for every post in a batch. The task is included in the cache input version so incompatible vector spaces cannot mix. The deployed REST endpoint was verified using top-level `taskType` and `outputDimensionality`: its newer nested config returned 3072 dimensions instead of the requested 768. The adapter validates the actual response length before storing anything. No extra SDK dependency is needed. Both Google adapters use bounded responses, timeouts, redacted errors, and reject redirects.
 
+### Private Security assessment
+
+Open http://localhost:5173/security, choose a demo profile, paste synthetic message or URL text, and click **Assess risk**. Try **“Your university account expires today. Click https://ucm-login-example.xyz to verify your account.”** The result shows HIGH risk, urgency/login-lure reasons, verification advice, limitations and **Analysis mode: llm**. **Clear analysis** removes the local text/result. Editing the message hides stale results; leaving the page or switching profiles clears the private draft. A LOW result means fewer detected signals, never a safety guarantee.
+
+The existing live client calls `POST /api/security/analyze` with `{ "text": "..." }` and `X-Demo-User-Id`. Input is 1–8000 characters; validation/auth/provider errors follow the standard envelope. Successful responses use `Cache-Control: no-store`. The analyzer has no database writes or content logging and never fetches submitted links, checks DNS, runs scripts, verifies domain ownership or persists results. The UI treats all supplied content as plain text and creates no public posts or clickable submitted links.
+
+Security uses the same `AI_PROVIDER`, `AI_MODEL`, server-only key, timeout and fallback settings as previews. Gemini returns typed risk/evidence codes; evidence snippets must occur in the input, and URL claims must agree with parsed structure. The server supplies fixed descriptions, advice and limitations rather than accepting arbitrary model instructions or URLs. Online analysis sends text to Google; Google's data policies apply. Remove credentials and identifying details before submitting. Explicit `AI_PROVIDER=heuristic` stays offline. A missing key, provider error or invalid assessment produces a labeled rule-based result; fallback disabled returns 503, and later requests retry Gemini.
+
+Offline rules recognize urgency, credential/payment requests, reward claims, login-like links and structural URL signals such as user-info, numeric hosts, Unicode/punycode and HTTP. They do not check reputation or infer legitimate domain ownership. The verification advice follows [NIST's phishing guidance](https://www.nist.gov/itl/smallbusinesscyber/guidance-topic/phishing). These limited rules can miss contextual or novel threats; the result is a risk assessment, not a verdict.
+
 ### Semantic ranking
 
 `EMBEDDING_PROVIDER=heuristic` keeps ranking offline and returns `HEURISTIC` with deterministic token overlap. To enable the server-side [OpenAI embeddings API](https://developers.openai.com/api/docs/guides/embeddings), set these values in local `backend/.env` (or root `.env` if it already overrides them), then restart the backend:
@@ -144,8 +154,8 @@ node node_modules/vite/bin/vite.js build --configLoader native
 node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 5173 --strictPort --configLoader native
 ```
 
-These commands were used for this workspace's TypeScript checks, 30 frontend tests, production build, and live browser check. Restart/rebuild the frontend after changing `.env.local`.
+These commands were used for this workspace's TypeScript checks, 37 frontend tests, production build, and live browser checks. Restart/rebuild the frontend after changing `.env.local`.
 
 Each laptop runs its own frontend, backend and seeded SQLite database. Git shares code and fixtures; it does not synchronize live database state. During the final demo, run both services on one chosen laptop. Hosting or a shared backend is optional later work.
 
-Next backend slices: private security analysis and the dedicated Study workflow. The next unchecked Person 2 task is P2-7 (private security analyzer and its dedicated page). The current Security page cannot assess submitted content yet.
+The next unchecked Person 2 task is P2-8: the dedicated Study workflow. Its existing page currently displays the shared Study post board; the backend already supports Study previews, matches and connections.

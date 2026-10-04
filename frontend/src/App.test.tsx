@@ -148,7 +148,7 @@ describe("frontend workflows", () => {
     );
     expect(
       await screen.findByRole("heading", {
-        name: "Security workspace reserved",
+        name: "Check a suspicious message",
       }),
     ).toBeInTheDocument();
     expect(

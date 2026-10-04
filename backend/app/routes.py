@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Request
+from fastapi import APIRouter, Path, Query, Request, Response
 from sqlalchemy import select
 
 from . import connections, matching, posts
@@ -12,6 +12,7 @@ from .schemas import (
     Category, DemoUsers, Health, PostCreate, PostList, PostResponse, PostStatus, StatusUpdate,
     ConnectionInput, ConnectionList, ConnectionResponse, ConnectionStatus, ConnectionUpdate,
     MatchInput, MatchResponse, UnderstandInput, Understanding,
+    SecurityInput, SecurityResult,
 )
 
 router = APIRouter(prefix='/api')
@@ -80,3 +81,9 @@ def inbox(db: DB, user: CurrentUser, status: ConnectionStatus | None = None):
 @router.patch('/connections/{connection_id}', response_model=ConnectionResponse)
 def update_connection(connection_id: Annotated[int, Path(ge=1)], body: ConnectionUpdate, db: DB, user: CurrentUser):
     return connections.transition(db, user, connection_id, body.status)
+
+
+@router.post('/security/analyze', response_model=SecurityResult)
+def analyze_security(body: SecurityInput, request: Request, response: Response, user: CurrentUser):
+    response.headers['Cache-Control'] = 'no-store'
+    return request.app.state.security.analyze(body)
