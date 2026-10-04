@@ -12,7 +12,25 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
     major: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    is_demo: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class StudentAccount(Base):
+    __tablename__ = 'student_accounts'
+
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), primary_key=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(256))
+    active: Mapped[bool] = mapped_column(default=True)
+
+
+class AuthSession(Base):
+    __tablename__ = 'auth_sessions'
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('student_accounts.user_id'), index=True)
+    csrf_token: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 

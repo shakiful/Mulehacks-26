@@ -73,7 +73,7 @@ export function DashboardPage() {
         </div>
         <span className="campus-label">
           <span />
-          UCM · Campus demo
+          UCM · Campus commons
         </span>
       </div>
       <section className="hero-panel">
@@ -149,7 +149,7 @@ export function DashboardPage() {
       </section>
       {isMock && (
         <p className="mt-3 text-xs text-stone-500">
-          Synthetic demo data · Fixed fixture dates · Scripted previews and
+          Synthetic fixture data · Fixed fixture dates · Scripted previews and
           illustrative scores
         </p>
       )}

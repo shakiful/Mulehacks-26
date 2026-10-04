@@ -1,3 +1,4 @@
+from backend.tests.auth_helpers import auth_headers
 from copy import deepcopy
 from datetime import datetime
 
@@ -45,7 +46,7 @@ def test_edit_all_categories_in_place(client, headers, category, details, change
 def test_edit_ownership_missing_identity_missing_post_and_category(client, headers, study):
     created = client.post('/api/posts', json=study, headers=headers).json()
     path = f"/api/posts/{created['id']}"
-    assert_error(client.put(path, json=study, headers={'X-Demo-User-Id': '2'}), 403, 'FORBIDDEN')
+    assert_error(client.put(path, json=study, headers=auth_headers(client, 2)), 403, 'FORBIDDEN')
     assert_error(client.put(path, json=study), 401, 'UNAUTHORIZED')
     assert_error(client.put('/api/posts/99999', json=study, headers=headers), 404, 'NOT_FOUND')
     changed_category = {**study, 'category': 'COMMUNITY', 'details': {'subcategory': 'OTHER'}}
@@ -87,7 +88,7 @@ def test_edit_keeps_existing_connection_records(client, headers, study, status):
     connection = client.post('/api/connections', json={'source_post_id': source['id'], 'target_post_id': target['id']}, headers=headers).json()
     if status == 'ACCEPTED':
         connection = client.patch(f"/api/connections/{connection['id']}", json={'status': status},
-                                  headers={'X-Demo-User-Id': str(connection['receiver_id'])}).json()
+                                  headers=auth_headers(client, connection['receiver_id'])).json()
     assert client.put(f"/api/posts/{source['id']}", json={**study, 'title': 'Updated SQL request'}, headers=headers).status_code == 200
     assert client.get('/api/connections', headers=headers).json()['items'] == [connection]
 
@@ -125,7 +126,7 @@ def test_edit_is_offline_and_regenerates_stale_embeddings_when_matching(settings
 
 def test_browser_put_preflight(client):
     response = client.options('/api/posts/1', headers={'Origin': 'http://localhost:5173',
-        'Access-Control-Request-Method': 'PUT', 'Access-Control-Request-Headers': 'content-type,x-demo-user-id'})
+        'Access-Control-Request-Method': 'PUT', 'Access-Control-Request-Headers': 'content-type,x-csrf-token'})
     assert response.status_code == 200
     assert response.headers['Access-Control-Allow-Origin'] == 'http://localhost:5173'
     assert 'PUT' in response.headers['Access-Control-Allow-Methods']

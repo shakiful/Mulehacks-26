@@ -17,9 +17,9 @@ const cases: [string, CreatePostInput, string, string][] = [
 ];
 
 function setup(input: CreatePostInput) {
-  const api = createMockApi({ getDemoUserId: () => 1, delayMs: 0 });
+  const api = createMockApi({ initialUser: { id: 1, name: "Rafi", username: "rafi" }, delayMs: 0 });
   const editPost = vi.fn(api.editPost), createPost = vi.fn(api.createPost), onCreated = vi.fn();
-  const post = { ...input, id: 42, author: { id: 1, name: "Rafi (demo)" }, status: "OPEN",
+  const post = { ...input, id: 42, author: { id: 1, name: "Rafi" }, status: "OPEN",
     created_at: "2026-10-03T12:00:00Z", updated_at: "2026-10-03T12:00:00Z" } as Post;
   editPost.mockResolvedValue(post);
   render(<ApiProvider client={{ ...api, editPost, createPost }}>

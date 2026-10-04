@@ -2,7 +2,7 @@ from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import (
-    AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter, field_validator, model_validator,
+    AwareDatetime, BaseModel, ConfigDict, Field, SecretStr, StringConstraints, TypeAdapter, field_validator, model_validator,
 )
 
 Category = Literal['RIDE', 'STUDY', 'RESTAURANT', 'COMMUNITY']
@@ -141,13 +141,22 @@ class PostList(BaseModel):
     offset: int
 
 
-class DemoUsers(BaseModel):
-    items: list[Author]
+class LoginInput(InputModel):
+    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    password: SecretStr = Field(min_length=1, max_length=256)
+
+
+class SignedInUser(Author):
+    username: str
+
+
+class SessionResponse(BaseModel):
+    user: SignedInUser | None
+    csrf_token: str | None
 
 
 class Health(BaseModel):
     status: Literal['ok'] = 'ok'
-    demo_mode: bool
 
 
 UnderstandingCategory = Literal['RIDE', 'STUDY', 'RESTAURANT', 'COMMUNITY', 'CYBERSECURITY']

@@ -49,7 +49,7 @@ export function CategoryPage({ category }: { category: Category }) {
       )}
       <div className="section-heading mb-5">
         <h2>Open campus posts</h2>
-        <span>Local demo community</span>
+        <span>Your campus community</span>
       </div>
       <PostBoard category={category} />
     </>

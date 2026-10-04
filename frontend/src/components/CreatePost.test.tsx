@@ -15,7 +15,7 @@ const study = (changes: Partial<Understanding> = {}): Understanding => ({
 });
 
 function setup(preview = study()) {
-  const api = createMockApi({ getDemoUserId: () => 1, delayMs: 0 });
+  const api = createMockApi({ initialUser: { id: 1, name: "Rafi", username: "rafi" }, delayMs: 0 });
   const understand = vi.fn(api.understand);
   const createPost = vi.fn(api.createPost);
   const onCreated = vi.fn();

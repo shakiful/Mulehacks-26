@@ -2,12 +2,20 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
-import { ApiProvider } from "./context/ApiContext";
+import { ApiProvider, useApi } from "./context/ApiContext";
+import { createMockApi } from "./api/mock";
+import type { MockScenario } from "./api/mock";
 import { AppRoutes } from "./App";
 
 function renderApp(path = "/") {
+  let scenario: MockScenario = "normal";
+  function ScenarioBridge() {
+    scenario = useApi().scenario;
+    return null;
+  }
   return render(
-    <ApiProvider mockMode>
+    <ApiProvider mockMode client={createMockApi({ initialUser: { id: 1, name: "Rafi", username: "rafi" }, delayMs: 50, getScenario: () => scenario })}>
+      <ScenarioBridge />
       <MemoryRouter initialEntries={[path]}>
         <AppRoutes />
       </MemoryRouter>
@@ -19,6 +27,14 @@ const navigationLink = (name: string) =>
     "link",
     { name },
   );
+async function switchStudent(user: ReturnType<typeof userEvent.setup>, username: string) {
+  await user.click(screen.getByRole("button", { name: "Log out" }));
+  await screen.findByRole("heading", { name: "Welcome back." });
+  await user.type(screen.getByRole("textbox", { name: "Username" }), username);
+  await user.type(screen.getByLabelText("Password"), "fixture-only");
+  await user.click(screen.getByRole("button", { name: "Sign in" }));
+  await screen.findByRole("navigation", { name: "Main navigation" });
+}
 describe("frontend workflows", () => {
   it("edits the author's existing post, returns to My posts, and keeps one record", async () => {
     const user = userEvent.setup();
@@ -37,7 +53,7 @@ describe("frontend workflows", () => {
     expect(screen.getAllByRole("article")).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Edit post" })).toHaveAttribute("href", "/posts/42/edit");
   });
-  it("cancels edits without saving and rejects editing another profile's post", async () => {
+  it("cancels edits without saving and hides editing another student's post", async () => {
     const user = userEvent.setup();
     renderApp("/posts/42/edit");
     const title = await screen.findByRole("textbox", { name: "Post title" });
@@ -47,15 +63,17 @@ describe("frontend workflows", () => {
     expect(await screen.findByRole("heading", { name: "Help with SQL joins" })).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: "Edit post" }));
     await screen.findByRole("button", { name: "Save changes" });
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo profile" }), "2");
-    expect(await screen.findByRole("alert")).toHaveTextContent("Only the author can edit this post.");
-    expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
+    await switchStudent(user, "afsana");
+    await user.click(navigationLink("Dashboard"));
+    await screen.findByRole("heading", { name: "Help with SQL joins" });
+    const card = screen.getByRole("heading", { name: "Help with SQL joins" }).closest("article")!;
+    expect(within(card).queryByRole("link", { name: "Edit post" })).not.toBeInTheDocument();
   });
-  it("shows loading, dashboard shortcuts, synthetic profiles, and empty/error recovery", async () => {
+  it("shows loading, dashboard shortcuts, signed-in students, and empty/error recovery", async () => {
     const user = userEvent.setup();
     renderApp();
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Loading demo profiles",
+      "Checking your session",
     );
     expect(
       await screen.findByRole("heading", { name: /Good things start/ }),
@@ -63,11 +81,10 @@ describe("frontend workflows", () => {
     expect(
       await screen.findByRole("heading", { name: "Help with SQL joins" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Demo profile" })).toHaveValue(
-      "1",
-    );
+    expect(screen.queryByRole("combobox", { name: "Demo profile" })).not.toBeInTheDocument();
+    expect(screen.getByText("Signed in as")).toBeInTheDocument();
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Demo responses" }),
+      screen.getByRole("combobox", { name: "Response states" }),
       "empty",
     );
     expect(
@@ -76,14 +93,14 @@ describe("frontend workflows", () => {
       }),
     ).toBeInTheDocument();
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Demo responses" }),
+      screen.getByRole("combobox", { name: "Response states" }),
       "error",
     );
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "temporarily unavailable",
     );
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Demo responses" }),
+      screen.getByRole("combobox", { name: "Response states" }),
       "normal",
     );
     expect(
@@ -103,14 +120,11 @@ describe("frontend workflows", () => {
     expect(
       await screen.findByRole("button", { name: "Request sent" }),
     ).toBeDisabled();
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Demo profile" }),
-      "2",
-    );
+    await switchStudent(user, "afsana");
     await user.click(navigationLink("Connections"));
     const accept = await screen.findByRole("button", { name: "Accept" });
     expect(
-      screen.getByRole("heading", { name: "Request from Rafi (demo)" }),
+      screen.getByRole("heading", { name: "Request from Rafi" }),
     ).toBeInTheDocument();
     await user.click(accept);
     expect(

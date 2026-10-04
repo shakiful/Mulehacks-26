@@ -17,30 +17,76 @@ const sampleInput = (): CreatePostInput => {
 };
 
 describe("live API contract", () => {
-  it("saves the full edit body to the existing post with PUT and demo ownership header", async () => {
+  it("revokes client session state on logout and sends its CSRF token", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixtures.signed_in_session)))
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixtures.signed_out_session)))
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixtures.post_created)));
+    const api = createLiveApi("/api", fetcher);
+    await api.getSession();
+    await api.logout();
+    expect(fetcher.mock.calls[1][1]).toMatchObject({ method: "POST", credentials: "include",
+      headers: { "X-CSRF-Token": fixtures.signed_in_session.csrf_token } });
+    await api.createPost(sampleInput());
+    expect(fetcher.mock.calls[2][1]?.headers).not.toHaveProperty("X-CSRF-Token");
+  });
+  it("ignores a stale session lookup after logout", async () => {
+    let finish!: (response: Response) => void;
+    const fetcher = vi.fn<typeof fetch>()
+      .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixtures.signed_out_session)))
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixtures.post_created)));
+    const api = createLiveApi("/api", fetcher);
+    const lookup = api.getSession();
+    await api.logout();
+    finish(new Response(JSON.stringify(fixtures.signed_in_session)));
+    await lookup;
+    await api.createPost(sampleInput());
+    expect(fetcher.mock.calls[2][1]?.headers).not.toHaveProperty("X-CSRF-Token");
+  });
+  it("does not let an old request's unauthorized response clear a newer login", async () => {
+    let finish!: (response: Response) => void;
+    const expired = vi.fn();
+    const nextSession = { user: fixtures.test_accounts[1], csrf_token: "synthetic-afsana-csrf" };
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixtures.signed_in_session)))
+      .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(nextSession)))
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixtures.post_created)));
+    const api = createLiveApi("/api", fetcher, expired);
+    await api.getSession();
+    const oldRequest = api.listPosts();
+    await api.login("afsana", "fixture-only");
+    finish(new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Sign in to continue.", details: [] } }), { status: 401 }));
+    await expect(oldRequest).rejects.toMatchObject({ status: 401 });
+    expect(expired).not.toHaveBeenCalled();
+    await api.createPost(sampleInput());
+    expect(fetcher.mock.calls[3][1]?.headers).toHaveProperty("X-CSRF-Token", nextSession.csrf_token);
+  });
+  it("saves the full edit body to the existing post with PUT with session credentials and CSRF protection", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(fixtures.post_edit.response)));
-    const api = createLiveApi("/api", () => 1, fetcher);
+    const api = createLiveApi("/api", fetcher);
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify(fixtures.signed_in_session)));
+    await api.login("rafi", "fixture-only");
     const input = structuredClone(fixtures.post_edit.request) as CreatePostInput;
     expect(await api.editPost(42, input)).toEqual(fixtures.post_edit.response);
     expect(fetcher).toHaveBeenCalledWith("/api/posts/42", {
-      method: "PUT", headers: { Accept: "application/json", "Content-Type": "application/json", "X-Demo-User-Id": "1" },
+      method: "PUT", credentials: "include", headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": fixtures.signed_in_session.csrf_token },
       body: JSON.stringify(input),
     });
     expect(input).not.toHaveProperty("author");
     expect(input).not.toHaveProperty("status");
   });
-  it("uses exact routes, snake_case bodies, and the selected identity only on protected requests", async () => {
-    let identity = 1;
+  it("uses exact routes, snake_case bodies, and session credentials and CSRF only on mutations", async () => {
     const fetcher = vi.fn<typeof fetch>(
-      async () => new Response(JSON.stringify({ items: [] }), { status: 200 }),
+      async (url) => new Response(JSON.stringify(String(url).includes("/auth/session") ? fixtures.signed_in_session : { items: [] }), { status: 200 }),
     );
     const api = createLiveApi(
       "http://localhost:8000/api/",
-      () => identity,
       fetcher,
     );
     await api.health();
-    await api.listDemoUsers();
+    await api.getSession();
     await api.listPosts({
       category: "RESTAURANT",
       user_id: 1,
@@ -58,13 +104,12 @@ describe("live API contract", () => {
     await api.updatePost(42, "COMPLETED");
     await api.getMatches(42);
     await api.createConnection(42, 7);
-    identity = 2;
     await api.listConnections("PENDING");
     await api.updateConnection(12, "ACCEPTED");
     await api.analyzeSecurity("synthetic message");
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
       "http://localhost:8000/api/health",
-      "http://localhost:8000/api/demo/users",
+      "http://localhost:8000/api/auth/session",
       "http://localhost:8000/api/posts?category=RESTAURANT&user_id=1&limit=5&offset=0",
       "http://localhost:8000/api/understand",
       "http://localhost:8000/api/posts",
@@ -79,8 +124,9 @@ describe("live API contract", () => {
     const options = fetcher.mock.calls.map((call) => call[1] as RequestInit);
     expect(options[0].headers).not.toHaveProperty("X-Demo-User-Id");
     expect(options[1].headers).not.toHaveProperty("X-Demo-User-Id");
-    expect(options[2].headers).toHaveProperty("X-Demo-User-Id", "1");
-    expect(options[9].headers).toHaveProperty("X-Demo-User-Id", "2");
+    expect(options[3].headers).toHaveProperty("X-CSRF-Token", fixtures.signed_in_session.csrf_token);
+    expect(options.every((option) => option.credentials === "include")).toBe(true);
+    expect(options[9].headers).not.toHaveProperty("X-CSRF-Token");
     expect(JSON.parse(options[7].body as string)).toEqual({
       post_id: 42,
       limit: 5,
@@ -100,7 +146,6 @@ describe("live API contract", () => {
   it("preserves standard validation details for form feedback", async () => {
     const api = createLiveApi(
       "/api",
-      () => 1,
       vi.fn(
         async () =>
           new Response(JSON.stringify(fixtures.validation_error), {
@@ -117,7 +162,6 @@ describe("live API contract", () => {
   it("handles network failures and unreadable responses", async () => {
     const offline = createLiveApi(
       "/api",
-      () => 1,
       vi.fn().mockRejectedValue(new TypeError("offline")),
     );
     await expect(offline.listPosts()).rejects.toMatchObject({
@@ -125,7 +169,6 @@ describe("live API contract", () => {
     });
     const html = createLiveApi(
       "/api",
-      () => 1,
       vi.fn(async () => new Response("<html>", { status: 502 })),
     );
     await expect(html.listPosts()).rejects.toMatchObject({
@@ -137,14 +180,12 @@ describe("live API contract", () => {
 
 describe("fixture mock behavior", () => {
   const setup = (initialIdentity: number | null = 1) => {
-    let identity = initialIdentity;
-    const api = createMockApi({ getDemoUserId: () => identity, delayMs: 0 });
-    return {
-      api,
-      select: (id: number | null) => {
-        identity = id;
-      },
-    };
+    const api = createMockApi({ initialUser: fixtures.test_accounts.find((user) => user.id === initialIdentity) ?? null, delayMs: 0 });
+    return { api, select: async (id: number | null) => {
+      await api.logout();
+      const account = fixtures.test_accounts.find((user) => user.id === id);
+      if (account) await api.login(account.username, "fixture-only");
+    } };
   };
   it("edits in place, preserves identity/creation metadata, clears optional fields, and drops stale fixture scores", async () => {
     const { api } = setup();
@@ -164,11 +205,11 @@ describe("fixture mock behavior", () => {
   it("rejects unauthorized, missing, invalid, recategorized, and closed post edits without changing data", async () => {
     const { api, select } = setup();
     const original = await api.getPost(42);
-    select(2);
+    await select(2);
     await expect(api.editPost(42, sampleInput())).rejects.toMatchObject({ status: 403 });
-    select(null);
+    await select(null);
     await expect(api.editPost(42, sampleInput())).rejects.toMatchObject({ status: 401 });
-    select(1);
+    await select(1);
     await expect(api.editPost(999, sampleInput())).rejects.toMatchObject({ status: 404 });
     await expect(api.editPost(42, { ...sampleInput(), title: "" })).rejects.toMatchObject({ status: 422 });
     await expect(api.editPost(42, { ...sampleInput(), category: "COMMUNITY" } as CreatePostInput)).rejects.toMatchObject({ status: 400 });
@@ -179,17 +220,17 @@ describe("fixture mock behavior", () => {
   it("invalidates scripted matches when the target is edited and preserves existing connections", async () => {
     const { api, select } = setup();
     const connection = await api.createConnection(42, 7);
-    select(2);
+    await select(2);
     const target = await api.getPost(7);
     const { id: _id, author: _author, status: _status, created_at: _created, updated_at: _updated, ...input } = target;
     await api.editPost(7, { ...input, title: "Updated tutoring offer" });
     expect((await api.listConnections()).items).toEqual([connection]);
-    select(1);
+    await select(1);
     expect((await api.getMatches(42)).matches).toEqual([]);
   });
   it("loads source fixtures, respects category/status/owner filters and pagination", async () => {
     const { api } = setup();
-    expect(await api.listDemoUsers()).toEqual(fixtures.demo_users);
+    expect((await api.getSession()).user).toEqual(fixtures.test_accounts[0]);
     expect(await api.listPosts()).toEqual(fixtures.post_list);
     expect(await api.listPosts({ category: "RIDE" })).toMatchObject({
       items: [],
@@ -206,14 +247,14 @@ describe("fixture mock behavior", () => {
       status: 422,
     });
   });
-  it("requires a known demo identity and enforces post ownership", async () => {
+  it("requires a signed-in student and enforces post ownership", async () => {
     const { api, select } = setup(null);
     await expect(api.listPosts()).rejects.toMatchObject({ status: 401 });
-    select(999);
+    await select(999);
     await expect(api.createPost(sampleInput())).rejects.toMatchObject({
       status: 401,
     });
-    select(2);
+    await select(2);
     await expect(api.updatePost(42, "COMPLETED")).rejects.toMatchObject({
       status: 403,
     });
@@ -222,9 +263,9 @@ describe("fixture mock behavior", () => {
       status: 403,
     });
   });
-  it("creates confirmed fields under selected identity without leaking mutable state", async () => {
+  it("creates confirmed fields under the signed-in student without leaking mutable state", async () => {
     const { api, select } = setup();
-    select(2);
+    await select(2);
     const created = await api.createPost({
       ...sampleInput(),
       location: null,
@@ -232,7 +273,7 @@ describe("fixture mock behavior", () => {
       ends_at: null,
     });
     expect(created).toMatchObject({
-      author: fixtures.demo_users.items[1],
+      author: { id: 2, name: "Afsana" },
       location: null,
       starts_at: null,
       ends_at: null,
@@ -250,9 +291,9 @@ describe("fixture mock behavior", () => {
   it("replays only fixture matches and excludes closed source or target posts", async () => {
     const { api, select } = setup();
     expect(await api.getMatches(42)).toEqual(fixtures.matches);
-    select(2);
+    await select(2);
     await api.updatePost(7, "COMPLETED");
-    select(1);
+    await select(1);
     expect((await api.getMatches(42)).matches).toEqual([]);
     await expect(api.createConnection(42, 7)).rejects.toMatchObject({
       status: 400,
@@ -275,7 +316,7 @@ describe("fixture mock behavior", () => {
     await expect(
       api.updateConnection(request.id, "ACCEPTED"),
     ).rejects.toMatchObject({ status: 403 });
-    select(2);
+    await select(2);
     expect((await api.listConnections()).items).toHaveLength(1);
     await expect(
       api.updateConnection(request.id, "CANCELLED"),
@@ -287,7 +328,7 @@ describe("fixture mock behavior", () => {
       api.updateConnection(request.id, "DECLINED"),
     ).rejects.toMatchObject({ status: 409 });
     expect((await api.getPost(7)).status).toBe("OPEN");
-    select(1);
+    await select(1);
     await expect(api.createConnection(42, 7)).rejects.toMatchObject({
       status: 409,
     });
@@ -300,7 +341,7 @@ describe("fixture mock behavior", () => {
       "CANCELLED",
     );
     const second = await api.createConnection(42, 7);
-    select(2);
+    await select(2);
     expect((await api.updateConnection(second.id, "DECLINED")).status).toBe(
       "DECLINED",
     );
@@ -352,7 +393,7 @@ describe("fixture mock behavior", () => {
   it("provides reproducible empty and error scenarios", async () => {
     let scenario: "normal" | "empty" | "error" = "empty";
     const api = createMockApi({
-      getDemoUserId: () => 1,
+      initialUser: fixtures.test_accounts[0],
       delayMs: 0,
       getScenario: () => scenario,
     });
@@ -360,6 +401,6 @@ describe("fixture mock behavior", () => {
     expect((await api.getMatches(42)).matches).toEqual([]);
     scenario = "error";
     await expect(api.listPosts()).rejects.toMatchObject({ status: 503 });
-    expect(await api.listDemoUsers()).toEqual(fixtures.demo_users);
+    expect((await api.getSession()).user).toEqual(fixtures.test_accounts[0]);
   });
 });

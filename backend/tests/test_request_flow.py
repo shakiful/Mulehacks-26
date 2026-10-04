@@ -1,3 +1,4 @@
+from backend.tests.auth_helpers import auth_headers
 from datetime import datetime
 
 import pytest
@@ -19,7 +20,7 @@ def make_ride(client, *, author=1, **changes):
                 starts_at='2026-10-03T18:00:00-05:00',
                 details=dict(origin='UCM', destination='Walmart', seats=1))
     body.update(changes)
-    response = client.post('/api/posts', headers={'X-Demo-User-Id': str(author)}, json=body)
+    response = client.post('/api/posts', headers=auth_headers(client, author), json=body)
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -47,7 +48,7 @@ def test_user_request_preview_confirm_matches_connect_accept(client, headers):
     assert result.status_code == 200, result.text
     matches = result.json()
     assert matches['matching_mode'] == 'HEURISTIC' and len(matches['matches']) == 2
-    assert [match['post']['author']['id'] for match in matches['matches']] == [2, 3]
+    assert [match['post']['author']['id'] for match in matches['matches']] == [2, 2]
     assert all(0 <= match['score'] <= 100 and match['reasons'] for match in matches['matches'])
     assert client.get('/api/connections', headers=headers).json() == {'items': []}
     connect = client.post('/api/connections', headers=headers, json={
@@ -57,7 +58,7 @@ def test_user_request_preview_confirm_matches_connect_accept(client, headers):
     connection = connect.json()
     assert set(connection) == {'id', 'requester_id', 'receiver_id', 'source_post_id', 'target_post_id', 'status', 'created_at', 'updated_at'}
     assert connection['receiver_id'] == 2 and connection['status'] == 'PENDING'
-    accepted = client.patch(f"/api/connections/{connection['id']}", headers={'X-Demo-User-Id': '2'}, json={'status': 'ACCEPTED'})
+    accepted = client.patch(f"/api/connections/{connection['id']}", headers=auth_headers(client, 2), json={'status': 'ACCEPTED'})
     assert accepted.status_code == 200 and accepted.json()['status'] == 'ACCEPTED'
     assert client.get('/api/connections?status=ACCEPTED', headers=headers).json()['items'][0]['id'] == connection['id']
     assert client.get(f"/api/posts/{post['id']}", headers=headers).json()['status'] == 'OPEN'
@@ -201,13 +202,13 @@ def test_match_ownership_closed_other_category_and_limits(client, headers):
     source = make_ride(client)
     own_offer = make_ride(client, intent='OFFER')
     closed = make_ride(client, author=4, intent='OFFER')
-    client.patch(f"/api/posts/{closed['id']}", headers={'X-Demo-User-Id': '4'}, json={'status': 'CANCELLED'})
+    client.patch(f"/api/posts/{closed['id']}", headers=auth_headers(client, 4), json={'status': 'CANCELLED'})
     response = client.post('/api/matches', headers=headers, json={'post_id': source['id'], 'limit': 1})
     assert len(response.json()['matches']) == 1
     all_matches = client.post('/api/matches', headers=headers, json={'post_id': source['id']}).json()['matches']
     assert all(match['post']['category'] == 'RIDE' and match['post']['author']['id'] != 1 and match['post']['status'] == 'OPEN' for match in all_matches)
     assert own_offer['id'] not in [match['post']['id'] for match in all_matches]
-    assert client.post('/api/matches', headers={'X-Demo-User-Id': '2'}, json={'post_id': source['id']}).status_code == 403
+    assert client.post('/api/matches', headers=auth_headers(client, 2), json={'post_id': source['id']}).status_code == 403
     for limit in (0, 21, 1.5, True):
         assert client.post('/api/matches', headers=headers, json={'post_id': source['id'], 'limit': limit}).status_code == 422
     client.patch(f"/api/posts/{source['id']}", headers=headers, json={'status': 'COMPLETED'})

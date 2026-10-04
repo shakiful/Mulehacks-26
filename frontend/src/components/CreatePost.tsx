@@ -465,7 +465,7 @@ export function CreatePost({
       )}
       <div className="mt-6 flex items-center justify-between gap-4 border-t border-stone-100 pt-5">
         <p className="max-w-xs text-xs text-stone-500">
-          This post is public within the local demo. Use synthetic details.
+          This post is visible to signed-in students. Use synthetic details for testing.
         </p>
         <div className="flex flex-wrap justify-end gap-3">
           {initialPost && onCancel && (

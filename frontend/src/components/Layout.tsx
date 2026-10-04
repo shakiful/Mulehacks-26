@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useState } from "react";
 import {
   BookOpen,
   CarFront,
-  ChevronDown,
+  LogOut,
   HeartHandshake,
   LayoutDashboard,
   Link2,
@@ -10,11 +10,10 @@ import {
   ShieldCheck,
   Utensils,
 } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useApi } from "../context/ApiContext";
-import { useResource } from "../hooks/useResource";
 import type { MockScenario } from "../api/mock";
-import { ErrorState, LoadingState } from "./States";
+import { ErrorState } from "./States";
 
 const navigation = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -25,15 +24,16 @@ const navigation = [
   { to: "/security", label: "Security", icon: ShieldCheck },
 ];
 export function Layout() {
-  const { api, userId, setUserId, isMock, scenario, setScenario } = useApi();
-  const profiles = useResource(() => api.listDemoUsers(), [api]);
-  useEffect(() => {
-    if (userId === null && profiles.data?.items.length)
-      setUserId(profiles.data.items[0].id);
-  }, [userId, profiles.data]);
-  const selected = profiles.data?.items.find(
-    (profile) => profile.id === userId,
-  );
+  const { user, userId, signOut, isMock, scenario, setScenario } = useApi();
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<unknown>(null);
+  async function logout() {
+    setLoggingOut(true); setLogoutError(null);
+    try { await signOut(); navigate("/login", { replace: true, state: null }); }
+    catch (error) { setLogoutError(error); }
+    finally { setLoggingOut(false); }
+  }
   return (
     <div className="app-shell">
       <a href="#main-content" className="skip-link">
@@ -83,18 +83,18 @@ export function Layout() {
           </NavLink>
         </nav>
         <div className="sidebar-bottom">
-          <div className="demo-note">
+          <div className="api-note">
             <span className="status-dot" />
-            <span>{isMock ? "Mock demo" : "Live API demo"}</span>
+            <span>{isMock ? "Fixture mode" : "Signed in"}</span>
             <p>
-              Demo profiles are synthetic.
+              A shared campus.
               <br />
-              Local prototype identity.
+              A new connection waiting.
             </p>
           </div>
           {isMock && (
-            <div className="demo-controls">
-              <label htmlFor="mock-scenario">Demo responses</label>
+            <div className="fixture-controls">
+              <label htmlFor="mock-scenario">Response states</label>
               <select
                 id="mock-scenario"
                 value={scenario}
@@ -106,7 +106,7 @@ export function Layout() {
                 <option value="empty">Empty</option>
                 <option value="error">Error</option>
               </select>
-              <p>Reload resets the in-memory demo.</p>
+              <p>Reload resets the in-memory fixtures.</p>
             </div>
           )}
           <p className="sidebar-footnote">
@@ -122,52 +122,16 @@ export function Layout() {
             Campus commons <span>/</span> MuleCampusBuddy
           </span>
           <div className="profile-selector">
-            <span className="avatar">{selected?.name.charAt(0) ?? "?"}</span>
-            <div>
-              <label htmlFor="demo-profile">Demo profile</label>
-              <div className="relative">
-                <select
-                  id="demo-profile"
-                  disabled={profiles.loading || !profiles.data?.items.length}
-                  value={userId ?? ""}
-                  onChange={(event) => setUserId(Number(event.target.value))}
-                >
-                  {!selected && <option value="">Choose a profile</option>}
-                  {profiles.data?.items.map((profile) => (
-                    <option value={profile.id} key={profile.id}>
-                      {profile.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={13}
-                  className="pointer-events-none absolute right-0 top-2"
-                />
-              </div>
-            </div>
+            <span className="avatar">{user?.name.charAt(0) ?? "?"}</span>
+            <div className="account-name"><span>Signed in as</span><strong>{user?.name}</strong></div>
+            <button className="button-secondary logout-button" disabled={loggingOut} onClick={logout}>
+              <LogOut size={15} />{loggingOut ? "Logging out…" : "Log out"}
+            </button>
           </div>
         </header>
         <main id="main-content" tabIndex={-1} className="main-content">
-          {profiles.loading ? (
-            <LoadingState label="Loading demo profiles…" />
-          ) : profiles.error ? (
-            <ErrorState error={profiles.error} retry={profiles.reload} />
-          ) : !profiles.data?.items.length ? (
-            <ErrorState
-              error={
-                new Error(
-                  "No demo profiles available. Seed the backend and retry.",
-                )
-              }
-              retry={profiles.reload}
-            />
-          ) : userId === null ? (
-            <LoadingState label="Selecting a demo profile…" />
-          ) : (
-            <div key={`${userId}:${scenario}`}>
-              <Outlet />
-            </div>
-          )}
+          {logoutError !== null && <div className="mb-5"><ErrorState error={logoutError} /></div>}
+          <div key={`${userId}:${scenario}`}><Outlet /></div>
         </main>
         <footer className="footer">
           <span>MuleCampusBuddy · MuleHacks 2026</span>

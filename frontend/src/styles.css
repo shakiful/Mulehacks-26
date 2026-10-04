@@ -153,7 +153,7 @@ select[aria-invalid="true"] {
   margin-top: auto;
   padding: 32px 10px 0;
 }
-.demo-note {
+.api-note {
   font-size: 12px;
   font-weight: 600;
 }
@@ -165,28 +165,28 @@ select[aria-invalid="true"] {
   background: #fff;
   margin-right: 8px;
 }
-.demo-note p {
+.api-note p {
   margin-top: 8px;
   color: #fff;
   font-weight: 400;
   font-size: 11px;
   line-height: 1.7;
 }
-.demo-controls {
+.fixture-controls {
   margin-top: 18px;
 }
-.demo-controls label {
+.fixture-controls label {
   display: block;
   font-size: 11px;
   color: #fff;
   margin-bottom: 5px;
 }
-.demo-controls select {
+.fixture-controls select {
   width: 100%;
   font-size: 12px;
   padding: 7px 10px;
 }
-.demo-controls p {
+.fixture-controls p {
   margin-top: 7px;
   color: #fff;
   font-size: 10px;
@@ -785,4 +785,41 @@ select[aria-invalid="true"] {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Student sign-in uses the shared campus palette and typeface. */
+.auth-state { min-height: 100dvh; display: grid; align-items: center; max-width: 680px; margin: auto; padding: 24px; }
+.account-name { display: grid; gap: 3px; }
+.account-name > span { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; }
+.account-name strong { font-size: 12px; }
+.logout-button { margin-left: 12px; padding: 9px 12px; }
+.login-shell { min-height: 100dvh; display: grid; grid-template-columns: 1fr 1fr; }
+.login-story { background: var(--ucm-red); color: white; padding: 48px; display: flex; flex-direction: column; }
+.login-story .sidebar-label { margin-left: 0; }
+.login-intro { margin: auto 0; padding: 60px 0; }
+.login-intro .eyebrow { color: #ffe4e6; }
+.login-intro h1 { margin-top: 20px; color: white; font-size: clamp(36px, 4vw, 58px); line-height: 1.12; }
+.login-intro > p:last-of-type { margin-top: 24px; max-width: 330px; line-height: 1.8; color: #fff1f2; }
+.login-icons { display: flex; gap: 16px; margin-top: 32px; }
+.login-icons svg { width: 48px; height: 48px; padding: 12px; border: 1px solid #ffffff60; border-radius: 12px; }
+.login-story-footer { font-size: 12px; color: #ffe4e6; }
+.login-content { background: var(--surface-grey); padding: 48px 32px; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+.login-card { width: 100%; max-width: 460px; border-radius: 18px; padding: 40px; background: var(--card-background); border: 1px solid var(--card-border); }
+.login-card h2 { font-size: 30px; margin-top: 16px; font-weight: 650; letter-spacing: -0.04em; }
+.login-description { margin-top: 10px; color: #57534e; font-size: 14px; }
+.password-input { position: relative; }
+.password-input input { padding-right: 44px; }
+.password-input button { position: absolute; right: 12px; top: 0; height: 100%; color: #64748b; }
+.login-submit { width: 100%; margin-top: 6px; background: var(--ucm-red); justify-content: center; }
+.login-submit:hover { background: #b91c1c; }
+.login-footer { margin-top: 26px; font-size: 11px; color: #57534e; text-align: center; }
+@media (max-width: 700px) {
+  .login-shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .login-story { padding: 26px 24px; }
+  .login-story .sidebar-label { display: block; margin-top: 12px; }
+  .login-intro, .login-story-footer { display: none; }
+  .login-content { padding: 30px 20px; flex: 1; }
+  .login-card { padding: 28px 22px; }
+  .logout-button { margin-left: 0; padding: 8px; font-size: 11px; }
+  .topbar .profile-selector { gap: 8px; }
 }
