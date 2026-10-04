@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validatePost } from "./posts";
+import { validatePost, isCoordinateLabel, ridePlaceLabel } from "./posts";
 import type { CreatePostInput } from "../api/types";
 
 const ride = {
@@ -14,6 +14,12 @@ const ride = {
     origin_point: { lat: 38.7625, lng: -93.7395 }, destination_point: { lat: 38.7905, lng: -93.7390 } },
 } satisfies CreatePostInput;
 describe("confirmed post validation", () => {
+  it('hides old coordinate placeholders without removing real street numbers or names', () => {
+    expect(isCoordinateLabel('Pickup (38.76104, -93.74312)')).toBe(true);
+    expect(ridePlaceLabel('Pickup (38.76104, -93.74312)', 'origin')).toBe('Selected pickup location');
+    expect(ridePlaceLabel('120 College Avenue', 'origin')).toBe('120 College Avenue');
+    expect(ridePlaceLabel('Walmart', 'destination')).toBe('Walmart');
+  });
   it("rejects invalid seats, missing routes, ambiguous dates, and invalid intervals", () => {
     expect(validatePost(ride)).toEqual([]);
     const errors = validatePost({

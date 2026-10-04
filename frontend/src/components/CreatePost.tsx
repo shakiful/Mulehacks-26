@@ -12,7 +12,7 @@ import type {
   GeoPoint,
 } from "../api/types";
 import { useApi } from "../context/ApiContext";
-import { blankDetails, categoryNames, validatePost } from "../lib/posts";
+import { blankDetails, categoryNames, validatePost, isCoordinateLabel, ridePlaceLabel } from "../lib/posts";
 import { questionsForDraft } from "../lib/clarifications";
 import { CAMPUS_TIME_ZONE, fromTimestamp, resolveDateTime, type DateTimeDraft } from "../lib/dateTime";
 import { ErrorState } from "./States";
@@ -54,7 +54,13 @@ export function CreatePost({
   const endsAt = endResolution.timestamp ?? "";
   const [details, setDetails] = useState<
     DraftDetails
-  >(initialPost ? { ...initialPost.details } : preview?.details ?? blankDetails(selectedCategory));
+  >(() => {
+    const initialDetails: DraftDetails = { ...(initialPost?.details ?? preview?.details ?? blankDetails(selectedCategory)) };
+    if (selectedCategory === 'RIDE' && !initialPost?.ride_availability?.reserved_seats) {
+      for (const label of ['origin', 'destination']) if (isCoordinateLabel(initialDetails[label])) initialDetails[label] = '';
+    }
+    return initialDetails;
+  });
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [requestError, setRequestError] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
@@ -144,7 +150,8 @@ export function CreatePost({
           type={numeric ? "number" : "text"}
           min={numeric ? 1 : undefined}
           step={numeric ? 1 : undefined}
-          value={typeof details[name] === "object" ? "" : details[name] ?? ""}
+          value={typeof details[name] === "object" ? "" : selectedCategory === 'RIDE' && (name === 'origin' || name === 'destination')
+            ? ridePlaceLabel(details[name], name) : details[name] ?? ""}
           onChange={(event) =>
             changeDetail(
               name,
@@ -378,13 +385,25 @@ export function CreatePost({
                 <RideRoutePicker
                   origin={typeof details.origin_point === "object" ? details.origin_point : null}
                   destination={typeof details.destination_point === "object" ? details.destination_point : null}
+                  originLabel={ridePlaceLabel(details.origin, 'origin')}
+                  destinationLabel={ridePlaceLabel(details.destination, 'destination')}
                   disabled={pending || refining}
                   errors={[fieldError("details.origin_point"), fieldError("details.destination_point")].filter(Boolean) as string[]}
-                  onSelect={(field, point) => {
-                    changeDetail(field, point);
+                  onSelect={(field, point, name) => {
                     const label = field === "origin_point" ? "origin" : "destination";
+                    dirty.current.add(`details.${field}`);
                     dirty.current.add(`details.${label}`);
-                    if (!details[label]) changeDetail(label, `${label === "origin" ? "Pickup" : "Destination"} (${point.lat.toFixed(5)}, ${point.lng.toFixed(5)})`);
+                    setDetails((current) => ({ ...current, [field]: point, [label]: name ?? '' }));
+                  }}
+                  onNameResolved={(field, point, name) => {
+                    const label = field === 'origin_point' ? 'origin' : 'destination';
+                    setDetails((current) => {
+                      const selected = current[field];
+                      // A delayed lookup cannot erase a manual name or a newer selection.
+                      if (!selected || typeof selected !== 'object' || selected.lat !== point.lat || selected.lng !== point.lng
+                        || current[label]) return current;
+                      return { ...current, [label]: name };
+                    });
                   }}
                 />
               </Suspense>

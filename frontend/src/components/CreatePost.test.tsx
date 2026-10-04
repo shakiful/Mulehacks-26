@@ -30,7 +30,7 @@ describe("conversational post clarification", () => {
   it("requires two explicit map selections for an offer and keeps them through AI follow-up", async () => {
     const preview = study({ category: "RIDE", intent: "OFFER", title: "Synthetic ride",
       text: "Offering four seats", starts_at: null,
-      details: { origin: "Campus", destination: "Walmart", seats: 4, origin_point: null, destination_point: null } });
+      details: { origin: "Old pickup", destination: "Old destination", seats: 4, origin_point: null, destination_point: null } });
     const { user, understand, createPost, onCreated } = setup(preview);
     fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "2026-10-03" } });
     fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "18:00" } });
@@ -53,6 +53,30 @@ describe("conversational post clarification", () => {
     expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ details: expect.objectContaining({
       seats: 4, origin_point: { lat: 38.7625, lng: -93.7395 }, destination_point: { lat: 38.7905, lng: -93.7390 },
     }) }));
+  });
+  it('fills the destination name after pin lookup while preserving a manual name typed during lookup', async () => {
+    setup(study({ category: 'RIDE', details: { origin: 'Campus', destination: 'Old destination', seats: 1,
+      origin_point: null, destination_point: null } }));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Select To awaiting name' }));
+    expect(screen.getByRole('textbox', { name: 'To' })).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Resolve To name' }));
+    expect(screen.getByRole('textbox', { name: 'To' })).toHaveValue('Walmart');
+    await user.click(screen.getByRole('button', { name: 'Select To awaiting name' }));
+    await user.type(screen.getByRole('textbox', { name: 'To' }), 'Walmart west entrance');
+    await user.click(screen.getByRole('button', { name: 'Resolve To name' }));
+    expect(screen.getByRole('textbox', { name: 'To' })).toHaveValue('Walmart west entrance');
+  });
+  it('replaces old numeric draft labels with resolved names without automatically saving', async () => {
+    const { createPost, user } = setup(study({ category: 'RIDE', details: {
+      origin: 'College Avenue', destination: 'Destination (38.79050, -93.73900)', seats: 1,
+      origin_point: { lat: 38.7625, lng: -93.7395 }, destination_point: { lat: 38.7905, lng: -93.7390 },
+    } }));
+    expect(screen.getByRole('textbox', { name: 'To' })).toHaveValue('');
+    await user.click(await screen.findByRole('button', { name: 'Resolve To name' }));
+    expect(screen.getByRole('textbox', { name: 'To' })).toHaveValue('Walmart');
+    expect(screen.getByRole('textbox', { name: 'From' })).toHaveValue('College Avenue');
+    expect(createPost).not.toHaveBeenCalled();
   });
   it("prefills all supplied facts and asks only for relevant missing information", async () => {
     const { user } = setup();

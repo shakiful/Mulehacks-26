@@ -31,7 +31,7 @@ Home has a natural-language input and five category shortcuts. Shared cards show
 Study/Security pages are Person 2's feature responsibility; Person 1 supplies shared layout and components. Decide page filenames before either person edits shared frontend files.
 
 ## Scope boundaries
-Demo identity replaces authentication for the MVP; it is only suitable for a local prototype. Defer password login, university SSO, trust scoring, payments, live GPS, messaging, transport booking guarantees, restaurant ordering, mobile apps and vector database infrastructure. Ride maps and local seat capacity tracking were explicitly requested on 2026-10-04; both requesters and drivers must select From/To pins. Use MapTiler when configured, otherwise OpenFreeMap through MapLibre. Road routing, geocoding/search and accepted-booking cancellation/reopening remain deferred. Do not display unverifiable trust badges.
+Demo identity replaces authentication for the MVP; it is only suitable for a local prototype. Defer password login, university SSO, trust scoring, payments, live GPS, messaging, transport booking guarantees, restaurant ordering, mobile apps and vector database infrastructure. Ride maps and local seat capacity tracking were explicitly requested on 2026-10-04; both requesters and drivers must select From/To pins. The subsequent requested map update adds MapTiler satellite imagery with street labels, explicit place/address search and automatic names for both pins. Use MapTiler when configured, otherwise OpenFreeMap through MapLibre with manual names. Road routing and accepted-booking cancellation/reopening remain deferred. Do not display unverifiable trust badges.
 
 ## AI responsibilities
 - Classify into five categories; manual category overrides win.

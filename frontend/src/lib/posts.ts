@@ -8,6 +8,12 @@ export const categoryNames: Record<Category | "CYBERSECURITY", string> = {
   CYBERSECURITY: "Security",
 };
 
+// Recognize only the numeric placeholders produced by the previous map picker.
+export const isCoordinateLabel = (value: unknown): boolean => typeof value === 'string'
+  && /^(?:Pickup|Destination)\s*\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)$/i.test(value.trim());
+export const ridePlaceLabel = (value: unknown, field: 'origin' | 'destination'): string =>
+  isCoordinateLabel(value) ? (field === 'origin' ? 'Selected pickup location' : 'Selected destination location') : String(value ?? '');
+
 export const blankDetails = (
   category: Category,
 ): DraftDetails => {

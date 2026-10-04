@@ -1,6 +1,6 @@
 import { CalendarDays, MapPin } from "lucide-react";
 import type { Post } from "../api/types";
-import { categoryNames } from "../lib/posts";
+import { categoryNames, ridePlaceLabel } from "../lib/posts";
 import type { ReactNode } from "react";
 import { CAMPUS_TIME_ZONE, formatCampusDateTime } from "../lib/dateTime";
 
@@ -40,7 +40,8 @@ export function PostCard({
                   ? "Desired group size"
                   : key.replaceAll("_", " ")}
             </dt>
-            <dd>{String(value).replaceAll("_", " ")}</dd>
+            <dd>{(post.category === 'RIDE' && (key === 'origin' || key === 'destination')
+              ? ridePlaceLabel(value, key) : String(value)).replaceAll("_", " ")}</dd>
           </div>
         ))}
       </dl>
