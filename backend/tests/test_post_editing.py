@@ -1,3 +1,4 @@
+from backend.tests.auth_helpers import auth_headers
 from copy import deepcopy
 from datetime import datetime
 
@@ -7,12 +8,13 @@ from fastapi.testclient import TestClient
 from backend.app.main import create_app
 from backend.app.models import PostEmbedding
 from backend.app.seed import seed
+from backend.app.seed import DEMO_ROUTE
 from backend.tests.test_api import assert_error
 from backend.tests.test_embeddings import FakeProvider
 
 
 CASES = [
-    ('RIDE', {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1}, {'seats': 2}),
+    ('RIDE', {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1, **DEMO_ROUTE}, {'seats': 2}),
     ('STUDY', {'course': 'SQL', 'topic': 'joins', 'mode': 'ONLINE'}, {'topic': 'indexes'}),
     ('RESTAURANT', {'restaurant': 'Example diner', 'activity_type': 'DINING', 'group_size': 2}, {'group_size': 3}),
     ('COMMUNITY', {'subcategory': 'BORROW_LEND', 'item': 'Calculator'}, {'item': 'Scientific calculator'}),
@@ -45,7 +47,7 @@ def test_edit_all_categories_in_place(client, headers, category, details, change
 def test_edit_ownership_missing_identity_missing_post_and_category(client, headers, study):
     created = client.post('/api/posts', json=study, headers=headers).json()
     path = f"/api/posts/{created['id']}"
-    assert_error(client.put(path, json=study, headers={'X-Demo-User-Id': '2'}), 403, 'FORBIDDEN')
+    assert_error(client.put(path, json=study, headers=auth_headers(client, 2)), 403, 'FORBIDDEN')
     assert_error(client.put(path, json=study), 401, 'UNAUTHORIZED')
     assert_error(client.put('/api/posts/99999', json=study, headers=headers), 404, 'NOT_FOUND')
     changed_category = {**study, 'category': 'COMMUNITY', 'details': {'subcategory': 'OTHER'}}
@@ -87,7 +89,7 @@ def test_edit_keeps_existing_connection_records(client, headers, study, status):
     connection = client.post('/api/connections', json={'source_post_id': source['id'], 'target_post_id': target['id']}, headers=headers).json()
     if status == 'ACCEPTED':
         connection = client.patch(f"/api/connections/{connection['id']}", json={'status': status},
-                                  headers={'X-Demo-User-Id': str(connection['receiver_id'])}).json()
+                                  headers=auth_headers(client, connection['receiver_id'])).json()
     assert client.put(f"/api/posts/{source['id']}", json={**study, 'title': 'Updated SQL request'}, headers=headers).status_code == 200
     assert client.get('/api/connections', headers=headers).json()['items'] == [connection]
 
@@ -95,11 +97,12 @@ def test_edit_keeps_existing_connection_records(client, headers, study, status):
 def test_ride_matching_uses_edited_route(client, headers):
     body = {'category': 'RIDE', 'intent': 'REQUEST', 'title': 'Synthetic Walmart ride',
             'text': 'Synthetic ride', 'starts_at': '2026-10-03T18:00:00-05:00',
-            'details': {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1}}
+            'details': {'origin': 'UCM', 'destination': 'Walmart', 'seats': 1, **DEMO_ROUTE}}
     source = client.post('/api/posts', json=body, headers=headers).json()
     request = {'post_id': source['id']}
     assert client.post('/api/matches', json=request, headers=headers).json()['matches']
     body['details']['destination'] = 'Airport'
+    body['details']['destination_point'] = {'lat': 39.0, 'lng': -93.7390}
     assert client.put(f"/api/posts/{source['id']}", json=body, headers=headers).status_code == 200
     assert client.post('/api/matches', json=request, headers=headers).json()['matches'] == []
 
@@ -125,7 +128,7 @@ def test_edit_is_offline_and_regenerates_stale_embeddings_when_matching(settings
 
 def test_browser_put_preflight(client):
     response = client.options('/api/posts/1', headers={'Origin': 'http://localhost:5173',
-        'Access-Control-Request-Method': 'PUT', 'Access-Control-Request-Headers': 'content-type,x-demo-user-id'})
+        'Access-Control-Request-Method': 'PUT', 'Access-Control-Request-Headers': 'content-type,x-csrf-token'})
     assert response.status_code == 200
     assert response.headers['Access-Control-Allow-Origin'] == 'http://localhost:5173'
     assert 'PUT' in response.headers['Access-Control-Allow-Methods']

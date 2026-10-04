@@ -75,7 +75,7 @@ export function PostBoard({
                     onClick={() => complete(post.id)}
                   >
                     <Check size={14} />
-                    {pendingId === post.id ? "Completing…" : "Mark completed"}
+                    {pendingId === post.id ? "Completing…" : post.category === "RIDE" && post.intent === "OFFER" ? "Mark filled" : "Mark completed"}
                   </button>
                 </>
               )}

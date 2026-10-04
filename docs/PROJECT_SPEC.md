@@ -7,7 +7,7 @@ Based on the attached ConnectHub plan, preserved in SOURCE_PLAN.md. This handoff
 Students have needs and useful skills but struggle to discover compatible people. ConnectHub connects students through one shared post and matching system, while connecting suspicious-message recipients to protective guidance.
 
 ## MVP journey
-1. Choose a labeled demo profile.
+1. Sign in with a student account; Rafi and Afsana are the two local test accounts. Log out to end a session or test as the other account.
 2. Describe a need or use a category form.
 3. Preview extracted category, intent, details and missing fields.
 4. Correct or confirm the preview; create a post for RIDE, STUDY, RESTAURANT or COMMUNITY.
@@ -19,7 +19,7 @@ Students have needs and useful skills but struggle to discover compatible people
 ## Modules
 | Module | Required fields / behavior |
 |---|---|
-| Ride | REQUEST or OFFER, origin, destination, starts_at, seats; seats means needed for REQUEST and available for OFFER. Opposite intent only; enough offered seats required. |
+| Ride | REQUEST/OFFER with required validated From/To map pins, labels, starts_at and seats needed/total offered. From/To typeahead suggestions replace the visible map by default. Clear locations from a sentence auto-fill valid points; ambiguous names require a choice. Show route/matching distances in miles; retain the 5 km (about 3.11 miles) pickup/destination gates and departures within 60 minutes. Acceptance reserves seats, completing the request; offers remain open until full or the driver marks filled. |
 | Study | REQUEST, OFFER or PARTNER; course/topic, mode, optional location and availability. REQUEST matches OFFER, PARTNER matches PARTNER. |
 | Food Connect | API category RESTAURANT; REQUEST to join or OFFER to host; restaurant/cuisine, DINING/GROUP_ORDER/TRIP, location/time and group_size. Connection does not place an order or reserve capacity. |
 | Community | REQUEST, OFFER or PARTNER; subcategory such as BORROW_LEND, CAMPUS_HELP, ACTIVITY, MOVING, SHOPPING, NEW_STUDENT or OTHER. Reuse post cards. |
@@ -31,7 +31,7 @@ Home has a natural-language input and five category shortcuts. Shared cards show
 Study/Security pages are Person 2's feature responsibility; Person 1 supplies shared layout and components. Decide page filenames before either person edits shared frontend files.
 
 ## Scope boundaries
-Demo identity replaces authentication for the MVP; it is only suitable for a local prototype. Defer password login, university SSO, trust scoring, payments, live GPS, messaging, booking, restaurant ordering, mobile apps and vector database infrastructure. Maps are optional; text locations are sufficient. Do not display unverifiable trust badges.
+The October 4 user request adds local username/password sign-in and logout, replacing the original demo identity decision. Provision only Rafi and Afsana for testing; passwords belong in ignored backend/.env files, and sessions determine ownership. No profile selector or demo-user API remains. Existing records are preserved during migration. University SSO, registration/password recovery, trust scoring, payments, live GPS, messaging, booking, restaurant ordering, mobile apps and vector database infrastructure remain deferred. Ride requests and offers require validated From/To points, descriptive names, departure time and seats. The map is hidden by default; field suggestions or clear sentence locations resolve names/points through MapTiler, with explicit choices for ambiguity. Show distances in miles and retain 5 km pickup/destination gates and shared-seat reservations. Show map (optional) provides satellite/street or OpenFreeMap fallback selection. Road routing and accepted-booking cancellation/reopening remain deferred. Do not display unverifiable trust badges or claim university-verified accounts.
 
 ## AI responsibilities
 - Classify into five categories; manual category overrides win.

@@ -24,7 +24,7 @@ export default function SecurityPage() {
     setFieldError(undefined);
   }
   useEffect(() => {
-    // Private drafts belong only to this mounted page and current demo profile.
+    // Private drafts belong only to this mounted page and signed-in student.
     clear();
     return () => { generation.current += 1; };
   }, [userId]);
@@ -75,7 +75,7 @@ export default function SecurityPage() {
         <form className="form-panel" onSubmit={analyze} noValidate>
           <h2 className="text-xl font-semibold">Check a suspicious message</h2>
           <p className="notice mt-4">
-            ConnectHub does not save or publish your text or results, and never visits pasted links.
+            MuleCampusBuddy does not save or publish your text or results, and never visits pasted links.
             {isMock ? " Mock mode returns a canned example; it does not assess your message." :
               " Online analysis sends the text to Gemini; Google's data policies apply. Remove passwords, codes and identifying details before submitting."}
           </p>

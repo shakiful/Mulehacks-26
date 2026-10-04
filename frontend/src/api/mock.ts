@@ -5,7 +5,7 @@ import type {
   ApiClient,
   Category,
   Connection,
-  DemoUser,
+  StudentUser,
   DiningMenuResponse,
   MatchResponse,
   Post,
@@ -15,44 +15,64 @@ import type {
 
 export type MockScenario = "normal" | "empty" | "error";
 interface MockOptions {
-  getDemoUserId: () => number | null;
+  initialUser?: StudentUser | null;
   delayMs?: number;
   getScenario?: () => MockScenario;
 }
 const clone = <T>(value: T): T => structuredClone(value);
 
 export function createMockApi({
-  getDemoUserId,
+  initialUser = null,
   delayMs = 300,
   getScenario = () => "normal",
-}: MockOptions): ApiClient {
-  const users: DemoUser[] = clone(fixtureData.demo_users.items);
+}: MockOptions = {}): ApiClient {
+  const users: StudentUser[] = clone(fixtureData.test_accounts);
+  let currentUser = initialUser && users.find((user) => user.id === initialUser.id) || null;
   const posts = clone(fixtureData.post_list.items) as Post[];
   const connections: Connection[] = [];
   const editedPostIds = new Set<number>();
   let nextPostId = Math.max(...posts.map((post) => post.id)) + 1;
   let nextConnectionId = fixtureData.connection.id;
 
-  async function ready(protectedOperation = true): Promise<DemoUser | null> {
-    // Capture identity before the delay so profile changes cannot change a pending operation's owner.
-    const user = users.find((item) => item.id === getDemoUserId()) ?? null;
+  async function ready(protectedOperation = true): Promise<StudentUser | null> {
+    // Capture the signed-in account before the delay; pending operations keep their owner.
+    const user = currentUser;
     await new Promise((resolve) => setTimeout(resolve, delayMs));
     if (protectedOperation && !user)
-      fail(401, "DEMO_IDENTITY_REQUIRED", "Choose a known demo profile.");
+      fail(401, "UNAUTHORIZED", "Sign in to continue.");
     if (protectedOperation && getScenario() === "error")
       fail(
         503,
         "MOCK_UNAVAILABLE",
-        "Demo error: the service is temporarily unavailable. Switch demo responses to Normal and retry.",
+        "The fixture service is temporarily unavailable. Switch response states to Normal and retry.",
       );
     return user;
   }
   const findPost = (id: number): Post =>
     posts.find((post) => post.id === id) ??
     fail(404, "NOT_FOUND", "Post not found.");
+  function withAvailability(post: Post): Post {
+    const result = clone(post);
+    result.ride_availability = null;
+    if (result.category === "RIDE" && result.intent === "OFFER") {
+      const reserved = connections.filter((c) => c.status === "ACCEPTED"
+        && (c.source_post_id === post.id || c.target_post_id === post.id))
+        .reduce((sum, c) => sum + c.reserved_seats, 0);
+      result.ride_availability = { total_seats: result.details.seats, reserved_seats: reserved,
+        remaining_seats: Math.max(0, result.details.seats - reserved) };
+    }
+    return result;
+  }
+  function rideCapacity(source: Post, target: Post) {
+    if (source.category !== "RIDE" || target.category !== "RIDE") return true;
+    const offer = source.intent === "OFFER" ? source : target;
+    const request = source.intent === "REQUEST" ? source : target;
+    return (withAvailability(offer).ride_availability?.remaining_seats ?? 0) >= request.details.seats;
+  }
   function scriptedMatches(source: Post, limit: number): MatchResponse {
     // Only replay supplied matches. New posts return empty results; there is no browser matching engine.
-    const canned = fixtureData.matches as unknown as MatchResponse;
+    const canned = (fixtureData.ride_matches.find((item) => item.post_id === source.id)
+      ?? fixtureData.matches) as unknown as MatchResponse;
     if (
       getScenario() === "empty" ||
       source.id !== canned.post_id ||
@@ -70,7 +90,7 @@ export function createMockApi({
         editedPostIds.has(target.id) ||
         target.id === source.id ||
         target.author.id === source.author.id ||
-        target.category !== source.category
+        target.category !== source.category || !rideCapacity(source, target)
       )
         return [];
       if (
@@ -81,7 +101,7 @@ export function createMockApi({
         )
       )
         return [];
-      return [{ ...clone(match), post: clone(target) }];
+      return [{ ...clone(match), post: withAvailability(target) }];
     });
     return { ...clone(canned), matches: matches.slice(0, limit) };
   }
@@ -89,11 +109,23 @@ export function createMockApi({
   return {
     health: async () => {
       await ready(false);
-      return clone(fixtureData.health) as { status: "ok"; demo_mode: boolean };
+      return { status: "ok" };
     },
-    listDemoUsers: async () => {
+    login: async (username, password) => {
       await ready(false);
-      return { items: clone(users) };
+      const user = users.find((item) => item.username === username.trim().toLowerCase());
+      if (!user || password !== "fixture-only") fail(401, "INVALID_CREDENTIALS", "The username or password is incorrect.");
+      currentUser = user;
+      return { user: clone(user), csrf_token: "synthetic-fixture-csrf-token" };
+    },
+    getSession: async () => {
+      await ready(false);
+      return { user: currentUser ? clone(currentUser) : null, csrf_token: currentUser ? "synthetic-fixture-csrf-token" : null };
+    },
+    logout: async () => {
+      await ready(false);
+      currentUser = null;
+      return { user: null, csrf_token: null };
     },
     getDiningMenus: async () => {
       await ready(false);
@@ -160,7 +192,7 @@ export function createMockApi({
           ? clone(sample.details)
           : blankDetails(category as Category);
       const missing: Record<Category, string[]> = {
-        RIDE: ["details.origin", "details.destination", "starts_at"],
+        RIDE: ["details.origin_point", "details.destination_point", "details.origin", "details.destination", "starts_at"],
         STUDY: ["details.course"],
         RESTAURANT: ["details.restaurant", "starts_at"],
         COMMUNITY: [],
@@ -196,13 +228,13 @@ export function createMockApi({
         starts_at: input.starts_at ?? null,
         ends_at: input.ends_at ?? null,
         id: nextPostId++,
-        author: clone(user),
+        author: { id: user.id, name: user.name },
         status: "OPEN" as const,
         created_at: now,
         updated_at: now,
       } as Post;
       posts.unshift(post);
-      return clone(post);
+      return withAvailability(post);
     },
     listPosts: async (query = {}) => {
       await ready();
@@ -241,7 +273,7 @@ export function createMockApi({
                   post.author.id === query.user_id),
             );
       return {
-        items: clone(items.slice(offset, offset + limit)),
+        items: items.slice(offset, offset + limit).map(withAvailability),
         total: items.length,
         limit,
         offset,
@@ -249,7 +281,7 @@ export function createMockApi({
     },
     getPost: async (id) => {
       await ready();
-      return clone(findPost(id));
+      return withAvailability(findPost(id));
     },
     editPost: async (id, input) => {
       const user = (await ready())!;
@@ -264,10 +296,25 @@ export function createMockApi({
       if (errors.length)
         fail(422, "VALIDATION_ERROR", "Correct the highlighted fields.", errors);
       const { title, text, intent, location, starts_at, ends_at, details } = clone(input);
+      const reserved = withAvailability(post).ride_availability?.reserved_seats ?? 0;
+      if (post.category === 'RIDE' && input.category === 'RIDE' && reserved) {
+        const sameTime = (a: string | null | undefined, b: string | null | undefined) =>
+          a == null && b == null || Boolean(a && b && Date.parse(a) === Date.parse(b));
+        const samePoint = (a: typeof post.details.origin_point, b: typeof post.details.origin_point) =>
+          a?.lat === b?.lat && a?.lng === b?.lng;
+        if (intent !== post.intent || !sameTime(starts_at, post.starts_at) || !sameTime(ends_at, post.ends_at)
+          || input.details.origin !== post.details.origin || input.details.destination !== post.details.destination
+          || !samePoint(input.details.origin_point, post.details.origin_point)
+          || !samePoint(input.details.destination_point, post.details.destination_point))
+          fail(409, 'CONFLICT', 'The route, time and offer type cannot change after passengers are accepted.');
+        if (input.details.seats < reserved)
+          fail(409, 'CONFLICT', 'Capacity cannot be less than the seats already reserved.');
+        if (input.details.seats === reserved) post.status = 'COMPLETED';
+      }
       Object.assign(post, { title: title.trim(), text: text.trim(), intent, location,
         starts_at, ends_at, details, updated_at: new Date().toISOString() });
       editedPostIds.add(id);
-      return clone(post);
+      return withAvailability(post);
     },
     updatePost: async (id, status) => {
       const user = (await ready())!;
@@ -276,9 +323,10 @@ export function createMockApi({
         fail(403, "FORBIDDEN", "Only the author can update this post.");
       if (!["COMPLETED", "CANCELLED"].includes(status))
         fail(422, "VALIDATION_ERROR", "Choose Completed or Cancelled.");
+      if (post.status !== "OPEN") fail(409, "CONFLICT", "This post is already closed.");
       post.status = status;
       post.updated_at = new Date().toISOString();
-      return clone(post);
+      return withAvailability(post);
     },
     getMatches: async (post_id, limit = 5) => {
       const user = (await ready())!;
@@ -335,6 +383,7 @@ export function createMockApi({
         source_post_id,
         target_post_id,
         status: "PENDING",
+        reserved_seats: 0,
         created_at: now,
         updated_at: now,
       };
@@ -381,6 +430,22 @@ export function createMockApi({
         );
       if (item.status !== "PENDING")
         fail(409, "CONFLICT", "Only pending connections can change status.");
+      if (status === "ACCEPTED") {
+        const source = findPost(item.source_post_id), target = findPost(item.target_post_id);
+        if (source.category === "RIDE" && target.category === "RIDE") {
+          if (source.status !== "OPEN" || target.status !== "OPEN" || !rideCapacity(source, target))
+            fail(409, "CONFLICT", "This ride is closed, booked, or no longer has enough seats.");
+          const offer = source.intent === "OFFER" ? source : target;
+          const request = source.intent === "REQUEST" ? source : target;
+          item.reserved_seats = request.details.seats;
+          request.status = "COMPLETED";
+          request.updated_at = new Date().toISOString();
+          if (withAvailability(offer).ride_availability!.remaining_seats === request.details.seats) {
+            offer.status = "COMPLETED";
+            offer.updated_at = new Date().toISOString();
+          }
+        }
+      }
       item.status = status;
       item.updated_at = new Date().toISOString();
       return clone(item);

@@ -1,6 +1,6 @@
 # API contract — proposed MVP v1
 
-Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps use ISO 8601 with a UTC offset. Every protected operation uses `X-Demo-User-Id` in local DEMO_MODE; never trust body user_id. Seed identities are synthetic. Health, demo-user listing and public dining menus require no header.
+Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps use ISO 8601 with a UTC offset. Protected operations use a server-managed HttpOnly session cookie from student sign-in; never trust body user_id or the removed X-Demo-User-Id header. Browser requests include credentials. Mutations send X-CSRF-Token from the current session response; origins must be configured frontend origins. Health, login, session lookup and dining menus are public. Rafi and Afsana are local test accounts, not university-verified identities.
 
 ## Shared types
 - Category: RIDE | STUDY | RESTAURANT | COMMUNITY. Understanding additionally supports CYBERSECURITY.
@@ -12,8 +12,10 @@ Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps u
 ## Endpoints
 | Method / path | Request | Successful response |
 |---|---|---|
-| GET /health | none | 200 `{ "status": "ok", "demo_mode": true }` |
-| GET /demo/users | none; demo only | 200 `{ "items": [{ "id": 1, "name": "Rafi (demo)" }] }` |
+| GET /health | none | 200 `{ "status": "ok" }` |
+| POST /auth/login | `{ "username": "rafi", "password": "local password" }` | 200 Session; sets a new session cookie |
+| GET /auth/session | none | 200 Session; user and csrf_token are null when signed out |
+| POST /auth/logout | none; current CSRF token when signed in | 200 signed-out Session; revokes cookie/session |
 | GET /dining/menus | none; public, always today's UCM date | 200 dining response below, with independent hall statuses |
 | POST /understand | text, optional category_hint, reference_time, timezone | 200 preview below; no persistence |
 | POST /posts | confirmed post body below | 201 Post |
@@ -27,11 +29,14 @@ Base: `/api`. JSON bodies use snake_case. Numeric ids are integers. Timestamps u
 | PATCH /connections/{connection_id} | `{ "status": "ACCEPTED" }` | 200 Connection; recipient accepts/declines PENDING, requester cancels PENDING |
 | POST /security/analyze | `{ "text": "Your university account expires today. Click https://ucm-login-example.xyz" }` | 200 risk response below; no public post/persistence |
 
-No `/posts/{category}` route: use `/posts?category=STUDY` to avoid collision with post ids. No `/analyze` alias: use `/security/analyze` everywhere.
+No `/posts/{category}` route: use `/posts?category=STUDY` to avoid collision with post ids. No `/analyze` alias: use `/security/analyze` everywhere. `/demo/users` is removed (404).
+
+## Student sessions
+Session: `{ "user": { "id": 1, "name": "Rafi", "username": "rafi" }, "csrf_token": "opaque session CSRF token" }`. Neither passwords, password hashes nor session-cookie values appear in JSON. Login normalizes usernames and rejects invalid credentials with the same 401 envelope. Sessions expire after the configured lifetime; logout immediately revokes the current session. Client state is cleared after protected requests return 401. GET session sends Cache-Control: no-store. Login attempts are limited; excess requests return 429. Credentials for the two test accounts stay in ignored backend/.env. Existing post/connection IDs and ownership checks are preserved during migration.
 
 ## UCM dining menus
 
-`GET /api/dining/menus` is read-only public information. The server selects today's date in `America/Chicago`, independently of `DEMO_DATE`, device time zone and AI settings. It fetches only the fixed Todd/Ellis Sodexo feeds; callers cannot supply a URL or hall ID. It does not use the database or Gemini.
+`GET /api/dining/menus` is read-only public information. The server selects today's date in `America/Chicago`, independently of `SEED_DATE`, device time zone and AI settings. It fetches only the fixed Todd/Ellis Sodexo feeds; callers cannot supply a URL or hall ID. It does not use the database or Gemini.
 
 ```json
 {"date":"2026-10-04","timezone":"America/Chicago","fetched_at":"2026-10-04T15:00:00Z","halls":[{"id":"todd","name":"Todd Dining Center","source_url":"https://ucmo.sodexomyway.com/en-us/locations/todd-dining-center-in-todd-hall","status":"AVAILABLE","message":null,"meals":[{"name":"Brunch","stations":[{"name":"Synthetic demo station","items":["Example breakfast bowl"]}]}]},{"id":"ellis","name":"Ellis Dining Center","source_url":"https://ucmo.sodexomyway.com/en-us/locations/ellis-dining-center","status":"EMPTY","message":"Sodexo has not published a menu for this day.","meals":[]}]}
@@ -61,31 +66,45 @@ Required common: category, intent, title (1–120 chars), text (1–4000 chars),
 Frontend calendar/time controls use UCM campus time (America/Chicago) and automatically produce these timestamp fields; users do not type ISO strings or offsets. For example, October 4, 2026 at 10:00 PM CDT is `2026-10-05T03:00:00Z`. The backend normalizes aware timestamps to UTC. Both omitted optional values and cleared availability keep the existing null semantics; no date/time API fields were added.
 
 Category details:
-- RIDE: origin and destination nonempty strings; seats integer >=1. starts_at required; intent REQUEST/OFFER only. Optional purpose string. No ends_at needed.
+- RIDE: origin and destination nonempty labels; both origin_point and destination_point are required objects with numeric finite lat (-90 to 90) and lng (-180 to 180). Reject strings, booleans, missing coordinates and extra fields. For REQUEST and OFFER, pins can come from a validated, unambiguous MapTiler lookup of extracted names or explicit map/result selection, reviewed before posting. AI previews still return both as null in missing_fields and never invent coordinates. seats is integer >=1, meaning seats needed for REQUEST and total seats offered for OFFER. starts_at required; intent REQUEST/OFFER only. Optional purpose string. No ends_at needed.
 - STUDY: course or topic nonempty (at least one). skill_level nullable BEGINNER/INTERMEDIATE/ADVANCED; mode nullable ONLINE/IN_PERSON. Availability uses common starts_at/ends_at.
 - RESTAURANT: restaurant or cuisine nonempty; activity_type DINING/GROUP_ORDER/TRIP; group_size integer >=1, meaning total desired group size, not a guaranteed remaining-seat count. starts_at required; intent REQUEST/OFFER only.
 - COMMUNITY: subcategory enum from PROJECT_SPEC.md; optional item or activity strings. Common text supplies the matching description.
 
 ## Edit post
 
-`PUT /posts/{post_id}` takes the complete confirmed post body shown above and returns the updated Post with 200. It replaces editable fields, including explicit nulls for cleared optional values. The existing PATCH status endpoint is unchanged. Only the author of an OPEN post may edit it; another author receives 403 and a closed post receives 409. Category remains fixed (400 if changed). All creation validations still apply. IDs, author, status and created_at are server-controlled and preserved; updated_at changes on save. Missing posts return 404. Security analyses are private and never editable public posts.
+`PUT /posts/{post_id}` takes the complete confirmed post body shown above and returns the updated Post with 200. It replaces editable fields, including explicit nulls for cleared optional values. The existing PATCH status endpoint is unchanged. Only the author of an OPEN post may edit it; another author receives 403 and a closed post receives 409. Category remains fixed (400 if changed). All creation validations still apply. IDs, author and created_at are server-controlled and preserved; status stays unchanged except a Ride capacity edit that fills the offer; updated_at changes on save. Missing posts return 404. Security analyses are private and never editable public posts.
+
+For Ride, edits serialize with acceptance under the same SQLite write lock. A booked passenger request cannot be edited. Once an offer has reservations, intent, departure/end times, From/To labels and both pins are fixed (409 on changes). Title, description, purpose, general location and total capacity remain editable; capacity below reserved seats returns 409, capacity above them leaves the offer OPEN, and capacity equal to them marks it COMPLETED. Reservations and their seat snapshots are preserved. Unbooked legacy rides can add required pins through this editor.
 
 New matches use the saved fields. The embedding cache's existing content hash detects edited title/text and regenerates vectors lazily during matching. Existing connection records retain their current statuses; users should coordinate changed details with participants. Mock edits invalidate the associated scripted fixture matches rather than replaying stale scores. Browser CORS allows PUT from the configured frontend origins. Saving an edit does not require an AI provider call.
 
-Post response includes submitted fields plus id, author `{ "id": 1, "name": "Rafi (demo)" }`, status OPEN, created_at and updated_at. Return all common optional fields explicitly as null when absent. Never return secrets or embeddings.
+Post response includes submitted fields plus id, author `{ "id": 1, "name": "Rafi" }`, status OPEN, created_at and updated_at. Return all common optional fields explicitly as null when absent. Never return secrets, account hashes or embeddings.
+
+Every Post also returns ride_availability: null except for Ride OFFER posts, where it is {"total_seats":4,"reserved_seats":1,"remaining_seats":3}. details.seats is the confirmed total capacity (editable within the booking safeguards); remaining capacity is computed from accepted reservations. Counts appear consistently in create/get/list/edit/status and nested match responses. Older posts without pins remain readable; they cannot participate in distance matching. An unmapped source returns 400 INVALID_OPERATION with instructions to edit the open ride to add pins or create a mapped ride.
+
+Example confirmed Ride details: {"origin":"Campus pickup","destination":"Walmart dropoff","origin_point":{"lat":38.7625,"lng":-93.7395},"destination_point":{"lat":38.7905,"lng":-93.7390},"seats":4,"purpose":"groceries"}. Coordinates are synthetic demonstration points, not inferred from those labels.
+
+The Ride UI resolves extracted names after understanding and follow-ups. One exact, detailed, high-relevance MapTiler result can fill its point/name; ambiguous branches, city-only/low-confidence results and unknown personal locations require a choice. UCM/campus and an unspecified Walmart resolve around Warrensburg; explicit cities are honored. From/To fields show debounced place suggestions and keep the map hidden unless Show map (optional) is chosen. Selecting a result writes its valid point and full name atomically. Editing a suggested label clears the old point, preventing stale distances. Manual choices and newer previews win over late responses. Users review the selected addresses before confirming creation. Optional reverse geocoding supplies a nearby name without moving a clicked point; lookup failure allows manual naming for that explicit point. Existing records and reserved routes are not rewritten. The separate public MapTiler key and geocoding service add no ConnectHub endpoint/JSON field; AI never invents coordinates. Distance summaries use miles from stored points, without persisted distance fields.
 
 ## Match response
 ```json
-{"post_id":42,"matching_mode":"SEMANTIC","matches":[{"post":{"id":7,"author":{"id":2,"name":"Sarah (demo)"},"category":"STUDY","intent":"OFFER","title":"Relational database tutoring","text":"I can help with relational databases and SQL joins","location":"Library","starts_at":"2026-10-03T18:00:00-05:00","ends_at":"2026-10-03T19:00:00-05:00","details":{"course":"Databases","topic":"SQL joins","skill_level":"ADVANCED","mode":"IN_PERSON"},"status":"OPEN","created_at":"2026-10-03T12:00:00Z","updated_at":"2026-10-03T12:00:00Z"},"score":89.4,"reasons":["Relevant SQL tutoring offer","Overlapping availability","Same meeting location"],"warnings":[]}]}
+{"post_id":42,"matching_mode":"SEMANTIC","matches":[{"post":{"id":7,"author":{"id":2,"name":"Afsana"},"category":"STUDY","intent":"OFFER","title":"Relational database tutoring","text":"I can help with relational databases and SQL joins","location":"Library","starts_at":"2026-10-03T18:00:00-05:00","ends_at":"2026-10-03T19:00:00-05:00","details":{"course":"Databases","topic":"SQL joins","skill_level":"ADVANCED","mode":"IN_PERSON"},"status":"OPEN","created_at":"2026-10-03T12:00:00Z","updated_at":"2026-10-03T12:00:00Z","ride_availability":null},"score":89.4,"reasons":["Relevant SQL tutoring offer","Overlapping availability","Same meeting location"],"warnings":[]}]}
 ```
 Fixture scores are illustrative mock values, not measured performance. No matches returns matches: []. Compatibility score is 0–100 with one decimal; no percentage-probability claims. No embedding/provider internals in response.
+
+Ride gates: different authors, opposite intents, both OPEN and mapped, unreserved passenger request, departures within 60 minutes, pickup pins within 5 km and destination pins within 5 km (about 3.11 miles each), remaining offered seats >= requested seats. Labels need not match. Haversine straight-line distances affect score: pickup proximity 25% + destination proximity 25% + time proximity 35% + enough remaining capacity 15%. Each distance term is max(0, 1 - distance_km/5); time is max(0, 1 - minutes/60). Internal km gates/scores are unchanged; reasons convert with exactly 1 mile = 1.609344 km and show miles to two decimals, time and remaining seats. Warnings distinguish straight-line distance from road routes/driving time. Fixture reasons use the same mile units. Ride mode remains HEURISTIC (deterministic structured scoring, no embeddings).
 
 ## Connection lifecycle
 Connection:
 ```json
-{"id":12,"requester_id":1,"receiver_id":2,"source_post_id":42,"target_post_id":7,"status":"PENDING","created_at":"2026-10-03T21:30:00Z","updated_at":"2026-10-03T21:30:00Z"}
+{"id":12,"requester_id":1,"receiver_id":2,"source_post_id":42,"target_post_id":7,"status":"PENDING","created_at":"2026-10-03T21:30:00Z","updated_at":"2026-10-03T21:30:00Z","reserved_seats":0}
 ```
-Validate both posts OPEN, same category, different authors and matching hard constraints. Reject duplicate PENDING/ACCEPTED pairs with 409. Derive recipient from target post. Acceptance records interest only; it does not reserve a seat, place an order or create a payment. Terminal connections cannot transition further in MVP. Users can complete their posts separately.
+Validate both posts OPEN, same category, different authors and matching hard constraints. Reject duplicate PENDING/ACCEPTED pairs with 409. Derive recipient from target post. Every Connection includes reserved_seats (0 for pending/non-Ride, requested seat count for an accepted Ride).
+
+For Ride only, accepting PENDING atomically rechecks open state, map/time gates, remaining capacity and whether the request is already booked. It creates one persisted seat reservation, completes the passenger REQUEST, and leaves the OFFER OPEN until remaining seats reach zero; then the offer becomes COMPLETED. This applies whether the driver or passenger initiated the connection. A 4-seat offer can accept 1 + 1 + 2 seats from separate requests. Pending/declined/cancelled requests hold no seats. Stale/full/closed/already-booked acceptances return 409 CONFLICT; no partial reservation is saved. Authors can mark offers COMPLETED early with the existing post PATCH (the UI calls this Mark filled), stopping new matches and acceptances regardless of spare capacity.
+
+Accepted connections remain terminal; seat release/reopening and booking cancellation are outside this prototype's current lifecycle. This is local demo capacity tracking, not a transport guarantee. Other categories still record interest only, never orders/payments/capacity. An additive startup migration counts older accepted Ride connections once per request, choosing the earliest if historical duplicates exist, without changing their posts or connection records.
 
 ## Security result
 ```json
@@ -98,4 +117,4 @@ All errors, including validation and route failures, share:
 ```json
 {"error":{"code":"VALIDATION_ERROR","message":"Correct the highlighted fields.","details":[{"field":"details.seats","message":"Must be at least 1"}]}}
 ```
-400 invalid operation, 401 missing/unknown demo identity, 403 wrong owner/participant, 404 missing resource or demo-only endpoint disabled, 409 duplicate/conflicting state, 422 validation, 503 provider unavailable when fallback is disabled. Hide stack traces and provider secrets. Install exception handlers so FastAPI validation errors use this envelope.
+400 invalid operation, 401 missing/expired session or incorrect login, 403 wrong owner/participant, untrusted request origin or missing/invalid CSRF token, 404 missing resource, 409 duplicate/conflicting state, 422 validation, 429 too many sign-in attempts, 503 provider unavailable when fallback is disabled. Hide stack traces, submitted passwords and provider secrets. Install exception handlers so FastAPI validation errors use this envelope.

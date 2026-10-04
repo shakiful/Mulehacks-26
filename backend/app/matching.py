@@ -6,6 +6,7 @@ from .ai.embeddings import EmbeddingResult, cosine_similarity
 from .errors import APIError
 from .models import Post
 from .posts import get_post
+from .rides import MAX_DISTANCE_KM, KM_PER_MILE, attach_availability, route_distances, seats_remaining
 
 STOPWORDS = set('a an the i you my your can need help with to from for and of at in on have looking someone synthetic demo'.split())
 
@@ -35,12 +36,15 @@ def compatible(source: Post, target: Post) -> bool:
     if (source.intent, target.intent) not in {('REQUEST', 'OFFER'), ('OFFER', 'REQUEST'), ('PARTNER', 'PARTNER')}:
         return False
     if source.category == 'RIDE':
-        if not all(known_equal(source.details.get(field), target.details.get(field)) for field in ('origin', 'destination')):
+        distances = route_distances(source, target)
+        if distances is None or any(distance > MAX_DISTANCE_KM for distance in distances):
+            return False
+        if getattr(source, 'ride_booked', False) or getattr(target, 'ride_booked', False):
             return False
         if not source.starts_at or not target.starts_at or abs((source.starts_at - target.starts_at).total_seconds()) > 3600:
             return False
         offered, requested = (source, target) if source.intent == 'OFFER' else (target, source)
-        return offered.details.get('seats', 0) >= requested.details.get('seats', 0) > 0
+        return seats_remaining(offered) >= requested.details.get('seats', 0) > 0
     if all((source.starts_at, source.ends_at, target.starts_at, target.ends_at)):
         if max(source.starts_at, target.starts_at) >= min(source.ends_at, target.ends_at):
             return False
@@ -63,9 +67,16 @@ def score_pair(source: Post, target: Post, semantic_similarity=None):
     reasons, warnings = [], []
     if source.category == 'RIDE':
         minutes = abs((source.starts_at - target.starts_at).total_seconds()) / 60
-        score = 0.50 + 0.35 * max(0, 1 - minutes / 60) + 0.15
-        reasons = ['Same confirmed origin and destination', f'Departures are {minutes:g} minutes apart',
-                   'Offered seats cover the requested seats']
+        pickup, destination = route_distances(source, target)
+        offer = source if source.intent == 'OFFER' else target
+        score = (0.25 * max(0, 1 - pickup / MAX_DISTANCE_KM)
+                 + 0.25 * max(0, 1 - destination / MAX_DISTANCE_KM)
+                 + 0.35 * max(0, 1 - minutes / 60) + 0.15)
+        reasons = [f'Pickup points are {pickup / KM_PER_MILE:.2f} miles apart',
+                   f'Destination points are {destination / KM_PER_MILE:.2f} miles apart',
+                   f'Departures are {minutes:g} minutes apart',
+                   f'{seats_remaining(offer)} remaining seats cover the requested seats']
+        warnings = ['Distances are straight-line measurements, not road routes or driving times.']
     else:
         semantic = semantic_similarity if semantic_similarity is not None else overlap(source.title + ' ' + source.text, target.title + ' ' + target.text)
         if semantic:
@@ -122,6 +133,9 @@ def find_matches(db, user, post_id, limit, embeddings=None):
     if source.status != 'OPEN':
         raise APIError(400, 'INVALID_OPERATION', 'Matches require an OPEN source post.')
     candidates = db.scalars(select(Post).where(Post.category == source.category, Post.status == 'OPEN', Post.user_id != user.id)).all()
+    if source.category == 'RIDE' and route_distances(source, source) is None:
+        raise APIError(400, 'INVALID_OPERATION', 'This older ride has no map pins. Edit your post to select From and To on the map, or create a new mapped ride.')
+    attach_availability(db, candidates)
     candidates = [target for target in candidates if compatible(source, target)]
     prepared = EmbeddingResult()
     if embeddings is not None and candidates and source.category != 'RIDE':

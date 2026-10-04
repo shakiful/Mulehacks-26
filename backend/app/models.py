@@ -12,7 +12,25 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
     major: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    is_demo: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class StudentAccount(Base):
+    __tablename__ = 'student_accounts'
+
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), primary_key=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(256))
+    active: Mapped[bool] = mapped_column(default=True)
+
+
+class AuthSession(Base):
+    __tablename__ = 'auth_sessions'
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('student_accounts.user_id'), index=True)
+    csrf_token: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
@@ -64,6 +82,22 @@ class Connection(Base):
     status: Mapped[str] = mapped_column(String(10), default='PENDING')
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
+    reservation: Mapped['RideReservation | None'] = relationship(lazy='joined', back_populates='connection')
+
+    @property
+    def reserved_seats(self):
+        return self.reservation.seats if self.reservation is not None else 0
+
+
+class RideReservation(Base):
+    __tablename__ = 'ride_reservations'
+    __table_args__ = (CheckConstraint('seats >= 1'),)
+
+    connection_id: Mapped[int] = mapped_column(ForeignKey('connections.id'), primary_key=True)
+    request_post_id: Mapped[int] = mapped_column(ForeignKey('posts.id'), unique=True)
+    offer_post_id: Mapped[int] = mapped_column(ForeignKey('posts.id'), index=True)
+    seats: Mapped[int]
+    connection: Mapped[Connection] = relationship(back_populates='reservation')
 
 
 class PostEmbedding(Base):

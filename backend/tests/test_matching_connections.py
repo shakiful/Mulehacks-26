@@ -1,3 +1,4 @@
+from backend.tests.auth_helpers import auth_headers
 from copy import deepcopy
 
 import pytest
@@ -6,20 +7,20 @@ import pytest
 def create_post(client, body, author=1, **changes):
     payload = deepcopy(body)
     payload.update(changes)
-    response = client.post('/api/posts', headers={'X-Demo-User-Id': str(author)}, json=payload)
+    response = client.post('/api/posts', headers=auth_headers(client, author), json=payload)
     assert response.status_code == 201, response.text
     return response.json()
 
 
 def matches(client, post):
-    response = client.post('/api/matches', headers={'X-Demo-User-Id': str(post['author']['id'])},
+    response = client.post('/api/matches', headers=auth_headers(client, post['author']['id']),
                            json={'post_id': post['id'], 'limit': 20})
     assert response.status_code == 200, response.text
     return response.json()['matches']
 
 
 def connect(client, source, target, author=None):
-    return client.post('/api/connections', headers={'X-Demo-User-Id': str(author or source['author']['id'])},
+    return client.post('/api/connections', headers=auth_headers(client, author or source['author']['id']),
                        json={'source_post_id': source['id'], 'target_post_id': target['id']})
 
 
@@ -103,10 +104,10 @@ def test_connection_identity_privacy_and_pending_duplicate_pairs(client, study):
     assert connect(client, source, target).status_code == 409
     assert connect(client, target, source).status_code == 409
     for participant in (1, 2):
-        assert client.get('/api/connections?status=PENDING', headers={'X-Demo-User-Id': str(participant)}).json()['items'] == [connection]
-    assert client.get('/api/connections', headers={'X-Demo-User-Id': '3'}).json() == {'items': []}
-    assert client.get('/api/connections?status=ACCEPTED', headers={'X-Demo-User-Id': '1'}).json() == {'items': []}
-    assert client.get('/api/connections?status=OPEN', headers={'X-Demo-User-Id': '1'}).status_code == 422
+        assert client.get('/api/connections?status=PENDING', headers=auth_headers(client, participant)).json()['items'] == [connection]
+    assert client.get('/api/connections', headers=auth_headers(client, 3)).json() == {'items': []}
+    assert client.get('/api/connections?status=ACCEPTED', headers=auth_headers(client, 1)).json() == {'items': []}
+    assert client.get('/api/connections?status=OPEN', headers=auth_headers(client, 1)).status_code == 422
 
 
 @pytest.mark.parametrize('status,actor,wrong_actor', [
@@ -118,12 +119,12 @@ def test_connection_transition_roles_terminal_state_and_retries(client, study, s
     connection = connect(client, source, target).json()
     url = f"/api/connections/{connection['id']}"
     for unauthorized in (wrong_actor, 3):
-        assert client.patch(url, headers={'X-Demo-User-Id': str(unauthorized)}, json={'status': status}).status_code == 403
-    transitioned = client.patch(url, headers={'X-Demo-User-Id': str(actor)}, json={'status': status})
+        assert client.patch(url, headers=auth_headers(client, unauthorized), json={'status': status}).status_code == 403
+    transitioned = client.patch(url, headers=auth_headers(client, actor), json={'status': status})
     assert transitioned.status_code == 200 and transitioned.json()['status'] == status
     assert transitioned.json()['updated_at'] >= connection['updated_at']
-    assert client.patch(url, headers={'X-Demo-User-Id': str(actor)}, json={'status': status}).status_code == 409
-    assert client.get(f"/api/posts/{source['id']}", headers={'X-Demo-User-Id': '1'}).json()['status'] == 'OPEN'
+    assert client.patch(url, headers=auth_headers(client, actor), json={'status': status}).status_code == 409
+    assert client.get(f"/api/posts/{source['id']}", headers=auth_headers(client, 1)).json()['status'] == 'OPEN'
     assert connect(client, source, target).status_code == (409 if status == 'ACCEPTED' else 201)
 
 
@@ -134,9 +135,9 @@ def test_connection_closed_self_same_author_other_category_and_missing_resources
     target = create_post(client, study, author=2, intent='OFFER')
     for invalid in (source, own, other_category):
         assert connect(client, source, invalid).status_code == 400
-    client.patch(f"/api/posts/{target['id']}", headers={'X-Demo-User-Id': '2'}, json={'status': 'COMPLETED'})
+    client.patch(f"/api/posts/{target['id']}", headers=auth_headers(client, 2), json={'status': 'COMPLETED'})
     assert connect(client, source, target).status_code == 400
-    headers = {'X-Demo-User-Id': '1'}
+    headers = auth_headers(client, 1)
     for response in (
         client.post('/api/connections', headers=headers, json={'source_post_id': source['id'], 'target_post_id': 9999}),
         client.post('/api/matches', headers=headers, json={'post_id': 9999}),

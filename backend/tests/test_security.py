@@ -9,6 +9,8 @@ from sqlalchemy import event
 from backend.app.ai.gemini import GeminiClient, GeminiUnavailable
 from backend.app.config import Settings
 from backend.app.main import create_app
+from backend.app.models import StudentAccount
+from backend.tests.auth_helpers import auth_headers
 from backend.app.schemas import SecurityInput
 from backend.app.seed import seed
 from backend.app.security.gemini import GeminiSecurityProvider
@@ -83,7 +85,7 @@ def test_route_shape_auth_no_persistence_no_logging_or_link_visits(client, heade
     assert client.get('/api/posts', headers=headers).json()['total'] == before
     with client.app.state.engine.connect() as connection:
         tables = connection.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'").scalars().all()
-    assert set(tables) == {'users', 'posts', 'connections', 'post_embeddings'}
+    assert set(tables) == {'users', 'student_accounts', 'auth_sessions', 'posts', 'connections', 'post_embeddings', 'ride_reservations'}
     assert client.post('/api/security/analyze', json={'text': SUSPICIOUS}).status_code == 401
     assert client.post('/api/security/analyze', headers={'X-Demo-User-Id': '999'}, json={'text': SUSPICIOUS}).status_code == 401
     assert client.post('/api/analyze', headers=headers, json={'text': SUSPICIOUS}).status_code == 404
@@ -99,9 +101,11 @@ def test_security_validation_has_standard_errors_and_no_body_echo(client, header
     assert 'input' not in response.json()['error']
 
 
-def test_security_accepts_8000_characters_and_disabled_demo_rejects(client, headers):
+def test_security_accepts_8000_characters_and_disabled_student_rejects(client, headers):
     assert client.post('/api/security/analyze', headers=headers, json={'text': 'x' * 8000}).status_code == 200
-    client.app.state.settings.demo_mode = False
+    assert client.post('/api/security/analyze', headers={'Cookie': headers['Cookie']}, json={'text': SUSPICIOUS}).status_code == 403
+    with client.app.state.session_factory.begin() as db:
+        db.get(StudentAccount, 1).active = False
     assert client.post('/api/security/analyze', headers=headers, json={'text': SUSPICIOUS}).status_code == 401
 
 
@@ -175,7 +179,7 @@ def test_provider_failure_fallback_recovery_and_standard_503(settings, caplog):
     settings.ai_fallback_enabled = False
     seed(settings)
     with TestClient(create_app(settings, security_provider=Flaky())) as client:
-        response = client.post('/api/security/analyze', headers={'X-Demo-User-Id': '1'}, json={'text': SUSPICIOUS})
+        response = client.post('/api/security/analyze', headers=auth_headers(client), json={'text': SUSPICIOUS})
     assert response.status_code == 503
     assert response.json()['error'] == {'code': 'PROVIDER_UNAVAILABLE', 'message': 'Security analysis provider is unavailable.', 'details': []}
     assert 'PRIVATE-SYNTHETIC-DATA' not in response.text and 'synthetic-secret-key' not in response.text

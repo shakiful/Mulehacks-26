@@ -11,7 +11,7 @@ import { DiningMenus } from "./DiningMenus";
 
 const sample = () => structuredClone(fixtures.dining_menus) as DiningMenuResponse;
 function setup({ category = "RESTAURANT", mockMode = false } = {}) {
-  const api = createMockApi({ getDemoUserId: () => 1, delayMs: 0 });
+  const api = createMockApi({ initialUser: fixtures.test_accounts[0], delayMs: 0 });
   const getDiningMenus = vi.fn(api.getDiningMenus).mockResolvedValue(sample());
   const rendered = render(<ApiProvider client={{ ...api, getDiningMenus }} mockMode={mockMode}>
     <MemoryRouter><CategoryPage category={category as "RESTAURANT" | "RIDE"} /></MemoryRouter>
@@ -94,7 +94,7 @@ describe("Food Connect dining menus", () => {
   it("requests a new menu date at midnight in Central time", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-04T04:59:30Z"));
-    const api = createMockApi({ getDemoUserId: () => 1, delayMs: 0 });
+    const api = createMockApi({ initialUser: fixtures.test_accounts[0], delayMs: 0 });
     const getDiningMenus = vi.fn().mockResolvedValue(sample());
     const mounted = render(<ApiProvider client={{ ...api, getDiningMenus }}><DiningMenus /></ApiProvider>);
     try {

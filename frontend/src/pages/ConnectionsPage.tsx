@@ -11,11 +11,11 @@ export function ConnectionsPage() {
   const [pending, setPending] = useState<number | null>(null);
   const [error, setError] = useState<unknown>(null);
   const resource = useResource(async () => {
-    const [connections, profiles] = await Promise.all([
-      api.listConnections(filter ? (filter as ConnectionStatus) : undefined),
-      api.listDemoUsers(),
-    ]);
-    return { connections: connections.items, profiles: profiles.items };
+    const result = await api.listConnections(filter ? (filter as ConnectionStatus) : undefined);
+    const ids = [...new Set(result.items.map((connection) =>
+      connection.receiver_id === userId ? connection.source_post_id : connection.target_post_id))];
+    const posts = await Promise.all(ids.map((id) => api.getPost(id)));
+    return { connections: result.items, posts };
   }, [api, userId, filter, scenario]);
   async function transition(
     id: number,
@@ -59,8 +59,9 @@ export function ConnectionsPage() {
         </div>
       </div>
       <p className="notice mb-6">
-        Acceptance records interest only. Each person can complete their post
-        separately.
+        Accepting a Ride connection reserves the requested seats and completes
+        the passenger's request. The driver stays open until all seats are reserved
+        or they mark the offer filled. Other connections record interest.
       </p>
       {error !== null && (
         <div className="mb-5">
@@ -74,18 +75,14 @@ export function ConnectionsPage() {
       ) : !resource.data?.connections.length ? (
         <EmptyState
           title="Your next hello is waiting."
-          description="Request a connection from a match. Incoming requests appear here for the receiving demo profile."
+          description="Request a connection from a match. Incoming requests appear here for the recipient when they sign in."
         />
       ) : (
         <div className="space-y-4">
           {resource.data.connections.map((connection) => {
             const incoming = connection.receiver_id === userId;
-            const otherId = incoming
-              ? connection.requester_id
-              : connection.receiver_id;
-            const name =
-              resource.data!.profiles.find((profile) => profile.id === otherId)
-                ?.name ?? `Demo profile #${otherId}`;
+            const otherPost = incoming ? connection.source_post_id : connection.target_post_id;
+            const name = resource.data!.posts.find((post) => post.id === otherPost)?.author.name ?? "Student";
             return (
               <article
                 key={connection.id}
@@ -104,6 +101,7 @@ export function ConnectionsPage() {
                     {new Date(connection.created_at).toLocaleDateString()}
                   </p>
                 </div>
+                {connection.reserved_seats > 0 && <p className="text-sm font-medium">{connection.reserved_seats} seat(s) reserved</p>}
                 <span className="mode-tag">
                   {connection.status.toLowerCase()}
                 </span>

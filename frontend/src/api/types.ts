@@ -17,15 +17,34 @@ export type CommunitySubcategory =
   | "SHOPPING"
   | "NEW_STUDENT"
   | "OTHER";
-export interface DemoUser {
+export interface UserSummary {
   id: number;
   name: string;
+}
+export interface StudentUser extends UserSummary {
+  username: string;
+}
+export interface StudentSession {
+  user: StudentUser | null;
+  csrf_token: string | null;
 }
 export interface RideDetails {
   origin: string;
   destination: string;
+  origin_point: GeoPoint;
+  destination_point: GeoPoint;
   seats: number;
   purpose?: string | null;
+}
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+}
+export type DraftDetails = Record<string, string | number | GeoPoint | null>;
+export interface RideAvailability {
+  total_seats: number;
+  reserved_seats: number;
+  remaining_seats: number;
 }
 export interface StudyDetails {
   course: string | null;
@@ -69,10 +88,11 @@ export type CreatePostInput = CommonPostInput &
   );
 export type Post = CreatePostInput & {
   id: number;
-  author: DemoUser;
+  author: UserSummary;
   status: PostStatus;
   created_at: string;
   updated_at: string;
+  ride_availability?: RideAvailability | null;
 };
 export interface PostList {
   items: Post[];
@@ -96,7 +116,7 @@ export interface UnderstandInput {
 export interface Understanding extends CommonPostInput {
   category: UnderstandingCategory;
   intent: Intent | null;
-  details: Record<string, string | number | null> | null;
+  details: DraftDetails | null;
   missing_fields: string[];
   warnings: string[];
   analysis_mode: AnalysisMode;
@@ -121,6 +141,7 @@ export interface Connection {
   status: ConnectionStatus;
   created_at: string;
   updated_at: string;
+  reserved_seats: number;
 }
 export interface SecurityResult {
   risk_level: "LOW" | "MEDIUM" | "HIGH";
@@ -151,8 +172,10 @@ export interface DiningMenuResponse {
   }[];
 }
 export interface ApiClient {
-  health(): Promise<{ status: "ok"; demo_mode: boolean }>;
-  listDemoUsers(): Promise<{ items: DemoUser[] }>;
+  health(): Promise<{ status: "ok" }>;
+  login(username: string, password: string): Promise<StudentSession>;
+  getSession(): Promise<StudentSession>;
+  logout(): Promise<StudentSession>;
   getDiningMenus(): Promise<DiningMenuResponse>;
   understand(input: UnderstandInput): Promise<Understanding>;
   createPost(input: CreatePostInput): Promise<Post>;
