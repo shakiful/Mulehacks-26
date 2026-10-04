@@ -108,6 +108,30 @@ class OpenAIEmbeddingProvider:
             raise EmbeddingUnavailable('Embedding provider is unavailable') from None
 
 
+class GeminiEmbeddingProvider:
+    def __init__(self, settings: Settings, opener=None):
+        from .gemini import GeminiClient
+        self.spec = EmbeddingSpec('gemini', settings.embedding_model, settings.embedding_dimensions,
+                                 INPUT_VERSION + ':gemini-semantic-similarity-v1')
+        self.client = GeminiClient(settings.gemini_api_key, opener=opener)
+        self.timeout = settings.embedding_timeout_seconds
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        try:
+            if self.spec.model != 'gemini-embedding-001':
+                raise ValueError('Use the supported semantic-similarity model')
+            body = self.client.post(self.spec.model, 'batchEmbedContents', {'requests': [
+                {'model': 'models/' + self.spec.model, 'content': {'parts': [{'text': text}]},
+                 'taskType': 'SEMANTIC_SIMILARITY', 'outputDimensionality': self.spec.dimensions}
+                for text in texts
+            ]}, timeout=self.timeout)
+            if len(body['embeddings']) != len(texts):
+                raise ValueError('Unexpected embedding count')
+            return [validate_vector(item['values'], self.spec.dimensions) for item in body['embeddings']]
+        except Exception:
+            raise EmbeddingUnavailable('Embedding provider is unavailable') from None
+
+
 @dataclass
 class EmbeddingResult:
     mode: str = 'HEURISTIC'
@@ -121,6 +145,8 @@ class EmbeddingService:
         self.provider = provider
         if provider is None and settings.embedding_provider == 'openai':
             self.provider = OpenAIEmbeddingProvider(settings)
+        elif provider is None and settings.embedding_provider == 'gemini':
+            self.provider = GeminiEmbeddingProvider(settings)
 
     def prepare(self, db, posts: list[Post], *, refresh=False) -> EmbeddingResult:
         if not posts or (self.provider is None and self.settings.embedding_provider == 'heuristic'):

@@ -5,7 +5,7 @@
 An AI-powered student connection platform for a hackathon themed **Connection**.
 Students describe a need; ConnectHub extracts details and finds compatible people or resources. Suspicious messages go to a private risk analyzer.
 
-**Status:** The React frontend and FastAPI/SQLite backend support live preview → confirmed post → semantic or heuristic matches → connection request → recipient acceptance. Demo profiles and seed posts are synthetic. A configurable OpenAI embedding adapter and versioned SQLite cache support semantic ranking; offline heuristics remain the default. Hosted understanding and the private Security analyzer remain pending; security-classified previews open the existing private placeholder.
+**Status:** The React frontend and FastAPI/SQLite backend support live preview → confirmed post → semantic or heuristic matches → connection request → recipient acceptance. Demo profiles and seed posts are synthetic. Gemini supports hosted classification/extraction and semantic embeddings; OpenAI embeddings remain available. A versioned SQLite cache supports semantic ranking; offline heuristics remain the default. The private Security analyzer remains pending; security-classified previews open the existing private placeholder.
 
 ## Shared context
 - [Product scope](docs/PROJECT_SPEC.md)
@@ -52,7 +52,7 @@ Restart Vite after changing these values. One typed API interface covers both ad
 
 The backend supplies the contracted health, demo profiles, posts, understanding, matches, and connections endpoints. CORS allows `http://localhost:5173` and `X-Demo-User-Id`. The shared live adapter works without frontend changes. The API contract and fixtures are unchanged. `/api` is a route prefix; open `/docs` for the interactive API or `/api/health` for a health check.
 
-Frontend validation: 19 passing tests, TypeScript checks, and a production build. Tests cover the live adapter's exact routes/headers/bodies and standard errors, fixture mock ownership and connection transitions, post validation, profile switching, loading/error/empty states, editable previews, and private Security routing. Backend validation: 154 tests cover post validation, repeatable seeding, CORS/errors, relative times and DST clarification, provider failure/output validation, category matching gates, duplicate connections, participant permissions, semantic weighting, cache/version invalidation, and malformed vectors. A live browser check submitted “I need a ride to Walmart around 6 tonight,” confirmed synthetic UCM origin and one seat, displayed both seeded offers, and accepted the request as Sarah. Embedding tests inject controlled vectors and HTTP responses; a paid hosted model has not been called or measured in this workspace.
+Frontend validation: 19 passing tests, TypeScript checks, and a production build. Tests cover the live adapter's exact routes/headers/bodies and standard errors, fixture mock ownership and connection transitions, post validation, profile switching, loading/error/empty states, editable previews, and private Security routing. Backend validation: 194 tests cover post validation, repeatable seeding, CORS/errors, relative times and DST clarification, provider failure/output validation, category matching gates, duplicate connections, participant permissions, semantic weighting, cache/version invalidation, and malformed vectors. A live browser check submitted “I need a ride to Walmart around 6 tonight,” confirmed synthetic UCM origin and one seat, displayed both seeded offers, and accepted the request as Sarah. Automated provider tests use controlled vectors and HTTP responses and never require paid calls. An explicit live Google check on October 3, 2026 produced an LLM SQL preview and three 768-dimensional vectors: the SQL/relational-database example had cosine similarity 0.8267 versus 0.7385 for physics. This is one synthetic smoke check, not a model-quality benchmark.
 
 ## Backend local development
 Python backend: FastAPI + SQLAlchemy + SQLite. Frontend: React + Vite + Tailwind.
@@ -73,7 +73,31 @@ Settings load `backend/.env`, then root `.env`, then process environment (later 
 
 For the live ride demo, select Rafi, enter the Walmart request, confirm origin `UCM`, seats `1`, and the date/time. The seed offers depart at 17:45 and 18:15 on the seed date. Matching requires the same normalized origin/destination, enough seats, and departures within 60 minutes. A different day or route correctly returns no matches. Switch to Sarah and open Connections to accept. Demo identity is selected by `X-Demo-User-Id`; ownership still applies. With `DEMO_MODE=false`, protected operations reject demo identities until real authentication is implemented.
 
-`AI_PROVIDER=heuristic` keeps understanding offline. It uses conservative keywords and explicit times; unknown origin, seats, dates, and other required facts remain missing for confirmation. The request's `reference_time` and IANA `timezone` resolve relative dates, with ambiguous DST times left for clarification. The provider interface validates category output and manual overrides. An unavailable/unimplemented provider falls back when `AI_FALLBACK_ENABLED=true`, or returns the standard 503 when disabled. A hosted understanding adapter is still pending.
+`AI_PROVIDER=heuristic` keeps understanding offline. It uses conservative keywords and explicit times; unknown origin, seats, dates, and other required facts remain missing for confirmation. The request's `reference_time` and IANA `timezone` resolve relative dates, with ambiguous DST times left for clarification. The provider interface validates category output and manual overrides. An unavailable/unimplemented provider falls back when `AI_FALLBACK_ENABLED=true`, or returns the standard 503 when disabled.
+
+### Google Gemini AI
+
+Create a key in [Google AI Studio](https://aistudio.google.com/api-keys), then edit the ignored local `backend/.env`. Keep the key on the backend; never put it in a `VITE_` variable or commit it. These settings enable both request understanding and semantic matching:
+
+```dotenv
+AI_PROVIDER=gemini
+AI_MODEL=gemini-3.5-flash-lite
+AI_TIMEOUT_SECONDS=30
+GEMINI_API_KEY=replace_with_your_local_key
+EMBEDDING_PROVIDER=gemini
+EMBEDDING_MODEL=gemini-embedding-001
+EMBEDDING_DIMENSIONS=768
+EMBEDDING_TIMEOUT_SECONDS=10
+AI_FALLBACK_ENABLED=true
+```
+
+`GOOGLE_API_KEY` is accepted as an alternative to `GEMINI_API_KEY`; use one key variable. Check root `.env` and process variables if local settings appear ignored. Restart the backend with the documented Uvicorn command after configuration changes. Google account quota/model access still applies; provider failures produce the labeled fallback, or a standard 503 with fallback disabled.
+
+The [structured-output adapter](https://ai.google.dev/gemini-api/docs/structured-output) classifies the text and extracts category details. Server validation enforces the contract, computes missing required fields, preserves original text, honors manual category hints, and requires clarification for unspecified dates/clocks and recognized DST ambiguity. Preview results return `analysis_mode: LLM` only after valid Google output. They are not persisted. Review the editable fields before posting.
+
+To try it at http://localhost:5173 with live mode enabled, enter **“I need help studying SQL joins tonight”**, click **Find my connections**, and verify **Preview mode: llm**. “Tonight” has no exact clock, so confirm availability yourself. Set location `Library`, meeting mode `In person`, and an interval overlapping the seeded tutor's 18:00–19:00 on your seed date. Click **Confirm & post** and verify **Matching mode: semantic** and Sarah's SQL/relational-database tutor. Missing availability or location lowers the compatibility score; it does not invent those facts.
+
+The [Gemini embedding adapter](https://ai.google.dev/api/embeddings) supports `gemini-embedding-001` with `SEMANTIC_SIMILARITY` for every post in a batch. The task is included in the cache input version so incompatible vector spaces cannot mix. The deployed REST endpoint was verified using top-level `taskType` and `outputDimensionality`: its newer nested config returned 3072 dimensions instead of the requested 768. The adapter validates the actual response length before storing anything. No extra SDK dependency is needed. Both Google adapters use bounded responses, timeouts, redacted errors, and reject redirects.
 
 ### Semantic ranking
 
@@ -99,7 +123,7 @@ backend/.venv/Scripts/python.exe -m backend.app.ai.embeddings
 backend/.venv/Scripts/python.exe -m backend.app.ai.embeddings --refresh
 ```
 
-The cache records provider, model, dimensions, input version `title-text-v1`, a SHA-256 hash of confirmed title/text, and creation time. Repeated calls reuse valid vectors; changed text, model, dimensions, or encoding version triggers regeneration. Different models/dimensions are never compared. Preview text is not embedded or persisted. Provider requests batch up to 16 posts, use the configured timeout, and validate model/count/index metadata and finite nonzero vectors before storing any batch. Provider errors and credentials are redacted.
+The cache records provider, model, dimensions, input version (`title-text-v1` for OpenAI, plus the semantic-similarity task version for Google), a SHA-256 hash of confirmed title/text, and creation time. Repeated calls reuse valid vectors; changed text, model, dimensions, or encoding version triggers regeneration. Different models/dimensions are never compared. Preview text is not embedded or persisted. Provider requests batch up to 16 posts, use the configured timeout, and validate each provider's count/order metadata and finite nonzero vectors before storing any batch. OpenAI also validates returned model/index metadata. Provider errors and credentials are redacted.
 
 If any required vector cannot be generated or validated, the entire ranked set falls back to `HEURISTIC` with a warning, or returns the standard 503 when fallback is disabled. Existing posts and valid cache rows are preserved. Scores remain compatibility scores, not probabilities. The adapter's HTTP format and ranking/cache behavior are tested with fakes; use a locally configured key to verify actual hosted-model quality and account access.
 
@@ -122,4 +146,4 @@ These commands were used for this workspace's TypeScript checks, 19 frontend tes
 
 Each laptop runs its own frontend, backend and seeded SQLite database. Git shares code and fixtures; it does not synchronize live database state. During the final demo, run both services on one chosen laptop. Hosting or a shared backend is optional later work.
 
-Next backend slices: a hosted understanding adapter, the dedicated Study workflow, and private security analysis. The next unchecked Person 2 task is P2-7 (private security analyzer and its dedicated page). The current Security page cannot assess submitted content yet.
+Next backend slices: private security analysis and the dedicated Study workflow. The next unchecked Person 2 task is P2-7 (private security analyzer and its dedicated page). The current Security page cannot assess submitted content yet.

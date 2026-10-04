@@ -156,6 +156,9 @@ class UnderstandingService:
     def __init__(self, settings: Settings, provider: UnderstandingProvider | None = None):
         self.settings = settings
         self.provider = provider
+        if provider is None and settings.ai_provider == 'gemini':
+            from .gemini_understanding import GeminiUnderstandingProvider
+            self.provider = GeminiUnderstandingProvider(settings)
 
     def preview(self, request: UnderstandInput) -> Understanding:
         if self.settings.ai_provider == 'heuristic' and self.provider is None:
